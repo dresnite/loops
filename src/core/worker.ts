@@ -1,15 +1,33 @@
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { getProvider } from "../providers/index.js";
+import type { StreamEvent } from "../providers/types.js";
 import type { LoopRun, TokenUsage } from "../types.js";
 import {
   estimateCostUsd,
   mergeUsage,
   shouldStopForLimits,
 } from "./limits.js";
+import { appendRunLog, truncateLogText } from "./logs.js";
 import { getRun, saveRun } from "./runner.js";
 import { getStoragePaths } from "./storage.js";
 
 const STOP_POLL_MS = 500;
+
+async function log(runId: string, message: string): Promise<void> {
+  await appendRunLog(runId, message);
+}
+
+function formatStreamEvent(event: StreamEvent): string | null {
+  if (event.type === "tool_call" && event.toolName) {
+    return `[tool] ${event.toolName}`;
+  }
+
+  if (event.type === "assistant" && event.text) {
+    return `[assistant] ${truncateLogText(event.text)}`;
+  }
+
+  return null;
+}
 
 async function isStopRequested(run: LoopRun): Promise<boolean> {
   const latest = await getRun(run.id);
@@ -23,6 +41,7 @@ async function sleep(ms: number): Promise<void> {
 async function consumeRun(
   run: LoopRun,
   prompt: string,
+  taskNumber: number,
 ): Promise<{ status: "finished" | "error" | "cancelled"; usage: TokenUsage }> {
   const provider = getProvider(run.provider);
   const session = await provider.createSession({ repoPath: run.repoPath });
@@ -30,6 +49,8 @@ async function consumeRun(
   await saveRun(run);
 
   try {
+    await log(run.id, `[task ${taskNumber}] sending prompt`);
+
     const agentRun = await session.send(prompt, {
       onUsage: (usage) => {
         run.usage = mergeUsage(run.usage, usage);
@@ -40,10 +61,16 @@ async function consumeRun(
     run.currentRunId = agentRun.id;
     await saveRun(run);
 
-    for await (const _event of agentRun.stream()) {
+    for await (const event of agentRun.stream()) {
       if (await isStopRequested(run)) {
         await agentRun.cancel();
+        await log(run.id, "[stop] requested");
         return { status: "cancelled", usage: run.usage };
+      }
+
+      const formatted = formatStreamEvent(event);
+      if (formatted) {
+        await log(run.id, formatted);
       }
     }
 
@@ -51,13 +78,16 @@ async function consumeRun(
     if (result.status === "error") {
       run.error = result.result ?? "run failed";
       await saveRun(run);
+      await log(run.id, `[task ${taskNumber}] error: ${run.error}`);
       return { status: "error", usage: run.usage };
     }
 
     if (result.status === "cancelled") {
+      await log(run.id, `[task ${taskNumber}] cancelled`);
       return { status: "cancelled", usage: run.usage };
     }
 
+    await log(run.id, `[task ${taskNumber}] finished`);
     return { status: "finished", usage: run.usage };
   } finally {
     run.currentRunId = undefined;
@@ -77,16 +107,22 @@ export async function executeWorker(runId: string): Promise<number> {
 
   run.status = "running";
   await saveRun(run, paths);
+  await log(
+    run.id,
+    `[start] loop=${run.loopName} repo=${run.repoPath}`,
+  );
 
   try {
     while (true) {
       if (await isStopRequested(run)) {
         run.status = "stopped";
         await saveRun(run, paths);
+        await log(run.id, "[stop] requested");
         return 0;
       }
 
-      const outcome = await consumeRun(run, run.prompt);
+      const taskNumber = run.tasksCompleted + 1;
+      const outcome = await consumeRun(run, run.prompt, taskNumber);
       run.tasksCompleted += 1;
       run.estimatedCostUsd = estimateCostUsd(run.usage);
       await saveRun(run, paths);
@@ -110,8 +146,14 @@ export async function executeWorker(runId: string): Promise<number> {
       }
 
       if (shouldStopForLimits(run.tasksCompleted, run.estimatedCostUsd, run.limits)) {
+        const limitMessage =
+          run.limits.maxTasks !== undefined &&
+          run.tasksCompleted >= run.limits.maxTasks
+            ? "[limit] tasks reached"
+            : "[limit] budget reached";
         run.status = "finished";
         await saveRun(run, paths);
+        await log(run.id, limitMessage);
         return 0;
       }
 
@@ -121,6 +163,7 @@ export async function executeWorker(runId: string): Promise<number> {
     run.status = "error";
     run.error = error instanceof Error ? error.message : String(error);
     await saveRun(run, paths);
+    await log(run.id, `[error] ${run.error}`);
 
     if (run.error.startsWith("startup failed")) {
       return 1;

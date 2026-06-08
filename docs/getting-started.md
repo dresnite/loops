@@ -101,9 +101,27 @@ Example output:
 structure-agent → running (run-id: a1b2, budget used: 30%, tasks: 7/25)
 ```
 
-Stop by run id or prefix:
+### Check if a loop failed
+
+Active runs disappear from `loops ls` when they finish or error. Use:
 
 ```bash
+loops ls --all
+loops logs structure-agent
+```
+
+Failed runs show `status: error` with an error snippet. `loops logs` prints the full activity log.
+
+### Follow a running loop
+
+```bash
+loops logs structure-agent --follow
+```
+
+Stop by loop name or run id:
+
+```bash
+loops stop structure-agent
 loops stop a1b2
 ```
 

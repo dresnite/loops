@@ -37,6 +37,7 @@ export function formatRunLine(run: {
   limits: { budgetUsd?: number; maxTasks?: number };
   tasksCompleted: number;
   estimatedCostUsd: number;
+  error?: string;
 }): string {
   const parts = [
     `${run.loopName} → ${run.status} (run-id: ${run.id.slice(0, 4)})`,
@@ -52,6 +53,12 @@ export function formatRunLine(run: {
 
   if (run.limits.maxTasks !== undefined) {
     parts.push(`tasks: ${run.tasksCompleted}/${run.limits.maxTasks}`);
+  }
+
+  if (run.status === "error" && run.error) {
+    const snippet =
+      run.error.length > 80 ? `${run.error.slice(0, 80)}...` : run.error;
+    parts.push(`error: ${snippet}`);
   }
 
   return parts.join(", ");

@@ -6,6 +6,8 @@ export type RunResultStatus = "finished" | "error" | "cancelled";
 export interface StreamEvent {
   type: string;
   usage?: TokenUsage;
+  toolName?: string;
+  text?: string;
 }
 
 export interface RunResult {

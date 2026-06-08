@@ -3,7 +3,6 @@ import { join } from "pathe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { addLoop } from "../../src/core/registry.js";
 import {
-  findRunByPrefix,
   getRun,
   listActiveRunsForLoop,
   setWorkerSpawnerForTesting,
@@ -11,6 +10,7 @@ import {
   startRun,
   stopRun,
 } from "../../src/core/runner.js";
+import { readRunLog } from "../../src/core/logs.js";
 import { getStoragePaths } from "../../src/core/storage.js";
 import {
   MockProvider,
@@ -104,17 +104,18 @@ describe("runner", () => {
     expect(stopped.status).toBe("stopped");
   });
 
-  it("finds runs by unique prefix", () => {
-    const match = findRunByPrefix(
-      [
-        {
-          id: "a1b2c3d4",
-        } as never,
-      ],
-      "a1b2",
-    );
+  it("stops active runs by loop name", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    const paths = getStoragePaths(homeDir);
+    const repoPath = await setupRepo(homeDir);
 
-    expect(match?.id).toBe("a1b2c3d4");
+    await addLoop({ name: "refactor", defaultPrompt: "default" }, paths);
+    const run = await startRun({ loopName: "refactor", repoPath }, paths);
+
+    const stopped = await stopRun("refactor", paths);
+    expect(stopped.status).toBe("stopped");
+    expect(stopped.id).toBe(run.id);
   });
 
   it("executes worker until once limit is reached", async () => {
@@ -170,5 +171,29 @@ describe("runner", () => {
     const finished = await getRun(run.id, paths);
     expect(finished?.tasksCompleted).toBe(2);
     expect(finished?.status).toBe("finished");
+  });
+
+  it("writes log lines while executing tasks", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    vi.stubEnv("HOME", homeDir);
+    const paths = getStoragePaths(homeDir);
+    const repoPath = await setupRepo(homeDir);
+
+    await addLoop({ name: "refactor", defaultPrompt: "default" }, paths);
+    const run = await startRun(
+      { loopName: "refactor", repoPath, once: true },
+      paths,
+    );
+
+    await executeWorker(run.id);
+
+    const lines = await readRunLog(run.id, { tail: 20 }, paths);
+    expect(lines.some((line) => line.includes("[start] loop=refactor"))).toBe(
+      true,
+    );
+    expect(lines.some((line) => line.includes("[task 1] finished"))).toBe(
+      true,
+    );
   });
 });

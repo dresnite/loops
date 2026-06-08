@@ -8,6 +8,7 @@ import { assertSupportedProvider } from "../providers/index.js";
 import type { LoopRun, StartRunInput } from "../types.js";
 import { createEmptyUsage } from "./limits.js";
 import { resolvePrompt } from "./prompt.js";
+import { resolveRunTarget } from "./resolve.js";
 import { getLoop } from "./registry.js";
 import {
   ensureStorageDirs,
@@ -74,23 +75,7 @@ export async function listActiveRunsForLoop(
   );
 }
 
-export function findRunByPrefix(
-  runs: LoopRun[],
-  prefix: string,
-): LoopRun | undefined {
-  const matches = runs.filter((run) => run.id.startsWith(prefix));
-  if (matches.length === 0) {
-    return undefined;
-  }
-
-  if (matches.length > 1) {
-    throw new Error(
-      `Ambiguous run id "${prefix}". Matches: ${matches.map((run) => run.id).join(", ")}`,
-    );
-  }
-
-  return matches[0];
-}
+export { resolveRunTarget } from "./resolve.js";
 
 async function assertRepoExists(repoPath: string): Promise<void> {
   try {
@@ -201,15 +186,11 @@ export async function startRun(
 }
 
 export async function stopRun(
-  runIdPrefix: string,
+  target: string,
   paths = getStoragePaths(),
 ): Promise<LoopRun> {
   const runs = await listRuns(paths);
-  const run = findRunByPrefix(runs, runIdPrefix);
-
-  if (!run) {
-    throw new Error(`No run found matching id prefix "${runIdPrefix}"`);
-  }
+  const run = resolveRunTarget(target, runs, { activeOnly: true });
 
   if (run.status !== "running" && run.status !== "starting") {
     throw new Error(`Run "${run.id}" is not active (status: ${run.status})`);

@@ -9,9 +9,13 @@ Loops stores all state globally under `~/.loops/`:
 ├── credentials.json
 ├── definitions/
 │   └── structure-agent.json
-└── runs/
-    └── a1b2c3d4.json
+├── runs/
+│   └── a1b2c3d4.json
+└── logs/
+    └── a1b2c3d4.log
 ```
+
+Run logs are append-only text files written by the worker. Each line is timestamped and includes task progress, tool calls, assistant snippets, errors, and limit events.
 
 ### Credentials schema
 

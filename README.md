@@ -32,13 +32,19 @@ loops add structure-agent --prompt "Improve project structure"
 #    --tasks 25   → stop after 25 agent turns
 loops run structure-agent --repo ./my-app --budget 10 --tasks 25
 
-# 4. Check what's running
+# 4. Check what's running (or see failed runs)
 loops ls
+loops ls --all
 
-# 5. Stop a run
+# 5. See what a loop is doing
+loops logs structure-agent
+loops logs structure-agent --follow
+
+# 6. Stop a run (by name or run-id)
+loops stop structure-agent
 loops stop a1b2
 
-# 6. Remove the definition
+# 7. Remove the definition
 loops rm structure-agent
 ```
 
@@ -53,7 +59,9 @@ loops rm structure-agent
 | `loops add <name>`           | Create a loop definition     |
 | `loops run <name>`           | Start a loop on a repository |
 | `loops ls`                   | List running loops           |
-| `loops stop <run-id>`        | Stop a running loop          |
+| `loops ls --all`             | List recent runs (incl. failed) |
+| `loops logs <name>`          | View logs for a loop run     |
+| `loops stop <name\|run-id>`  | Stop a running loop          |
 | `loops rm <name>`            | Delete a loop definition     |
 
 ## Documentation

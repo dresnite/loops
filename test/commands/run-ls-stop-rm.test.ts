@@ -121,6 +121,66 @@ describe("loops run/ls/stop/rm", () => {
     ).rejects.toThrow('Cannot remove "refactor" while runs are active');
   });
 
+  it("stops active runs by loop name", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    const repoPath = await setup(homeDir);
+    const paths = getStoragePaths(homeDir);
+
+    await runCommand(addCommand, {
+      rawArgs: ["refactor", "--prompt", "Improve structure"],
+    });
+
+    await runCommand(runCommandDef, {
+      rawArgs: ["refactor", "--repo", repoPath],
+    });
+
+    await runCommand(stopCommand, { rawArgs: ["refactor"] });
+
+    const stopped = (await listRuns(paths))[0];
+    expect(stopped?.status).toBe("stopped");
+  });
+
+  it("lists failed runs with --all", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    const repoPath = await setup(homeDir);
+    const paths = getStoragePaths(homeDir);
+
+    setProviderForTesting(
+      new MockProvider({
+        runs: [{ status: "error", result: "startup failed: mock failure" }],
+      }),
+    );
+    setWorkerSpawnerForTesting(() => ({ pid: 0 }));
+
+    await runCommand(addCommand, {
+      rawArgs: ["refactor", "--prompt", "Improve structure"],
+    });
+
+    await runCommand(runCommandDef, {
+      rawArgs: ["refactor", "--repo", repoPath, "--once"],
+    });
+
+    const run = (await listRuns(paths))[0]!;
+    await executeWorker(run.id);
+
+    const logs: string[] = [];
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+
+    try {
+      await runCommand(lsCommand, { rawArgs: ["--all"] });
+    } finally {
+      console.log = originalLog;
+    }
+
+    expect(logs.some((line) => line.includes("error"))).toBe(true);
+    expect(logs.some((line) => line.includes("refactor"))).toBe(true);
+  });
+
   it("finishes one-shot runs via worker", async () => {
     const { homeDir, cleanup } = await createTempHome();
     cleanups.push(cleanup);

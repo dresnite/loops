@@ -86,31 +86,64 @@ Started loop "structure-agent" (run-id: a1b2c3d4)
 
 ## `loops ls`
 
-List all currently running loops.
+List currently running loops.
 
 ```bash
 loops ls
+loops ls --all
 ```
+
+| Flag | Description |
+| --- | --- |
+| `--all`, `-a` | Show recent runs (all statuses, up to 20) |
 
 Example output:
 
 ```text
 structure-agent → running (run-id: a1b2, budget used: 30%, tasks: 7/25)
-tests → running (run-id: c3d4)
+structure-agent → error (run-id: c3d4, tasks: 3/25, error: startup failed: ...)
 ```
 
-Shows budget percentage and task progress when limits are set.
+Shows budget percentage, task progress, and error snippets when relevant.
 
-## `loops stop <run-id>`
+## `loops logs <name|run-id>`
+
+View logs for a loop run. Resolves the latest run when given a loop name.
+
+```bash
+loops logs structure-agent
+loops logs structure-agent --follow
+loops logs a1b2c3d4 --lines 100
+```
+
+| Flag | Description |
+| --- | --- |
+| `--follow`, `-f` | Follow log output live |
+| `--lines`, `-n` | Number of lines to show (default: 50) |
+
+Example output:
+
+```text
+Run a1b2c3d4 (structure-agent) — status: error
+Error: startup failed: ...
+---
+2026-06-08T12:00:00.000Z [start] loop=structure-agent repo=/path
+2026-06-08T12:00:01.000Z [task 1] sending prompt
+2026-06-08T12:00:05.000Z [tool] read
+2026-06-08T12:00:10.000Z [task 1] error: startup failed: ...
+```
+
+## `loops stop <name|run-id>`
 
 Stop an active loop run.
 
 ```bash
+loops stop structure-agent
 loops stop a1b2c3d4
 loops stop a1b2
 ```
 
-Accepts a full run id or a unique prefix. Sends `SIGTERM` to the worker process and marks the run as `stopped`.
+Accepts a loop name (when only one active run exists), a full run id, or a unique prefix. Sends `SIGTERM` to the worker process and marks the run as `stopped`.
 
 ## `loops rm <name>`
 
@@ -124,8 +157,4 @@ Refuses to delete if any run for that loop name is still active. Stop runs first
 
 ## Global behavior
 
-Running `loops` with no subcommand prints the provider roadmap:
-
-```text
-Providers: cursor (planned: claude-code)
-```
+Running `loops --help` includes the provider roadmap in the description (`cursor` supported, `claude-code` planned).

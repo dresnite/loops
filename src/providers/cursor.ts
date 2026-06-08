@@ -20,6 +20,20 @@ class CursorAgentRun implements AgentRun {
 
   async *stream(): AsyncGenerator<StreamEvent> {
     for await (const event of this.run.stream()) {
+      if (event.type === "assistant") {
+        for (const block of event.message.content) {
+          if (block.type === "text" && block.text) {
+            yield { type: "assistant", text: block.text };
+          }
+        }
+        continue;
+      }
+
+      if (event.type === "tool_call") {
+        yield { type: "tool_call", toolName: event.name };
+        continue;
+      }
+
       yield { type: event.type };
     }
   }

@@ -7,14 +7,14 @@ export default defineCommand({
     description: "Stop a running loop",
   },
   args: {
-    runId: {
+    target: {
       type: "positional",
-      description: "Run id or prefix",
+      description: "Run id, prefix, or loop name",
       required: true,
     },
   },
   async run({ args }) {
-    const run = await stopRun(args.runId);
+    const run = await stopRun(args.target);
     console.log(`Stopped loop "${run.loopName}" (run-id: ${run.id})`);
   },
 });

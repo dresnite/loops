@@ -1,6 +1,5 @@
 export { addLoop, getLoop, listLoops, removeLoop } from "./registry.js";
 export {
-  findRunByPrefix,
   getRun,
   listActiveRunsForLoop,
   listRuns,
@@ -9,6 +8,13 @@ export {
   startRun,
   stopRun,
 } from "./runner.js";
+export { isActiveRun, resolveRunTarget } from "./resolve.js";
+export {
+  appendRunLog,
+  followRunLog,
+  readRunLog,
+  truncateLogText,
+} from "./logs.js";
 export { executeWorker } from "./worker.js";
 export { resolvePrompt } from "./prompt.js";
 export {

@@ -7,6 +7,7 @@ export interface StoragePaths {
   root: string;
   definitions: string;
   runs: string;
+  logs: string;
 }
 
 export function getStoragePaths(homeDir = homedir()): StoragePaths {
@@ -15,12 +16,14 @@ export function getStoragePaths(homeDir = homedir()): StoragePaths {
     root,
     definitions: join(root, "definitions"),
     runs: join(root, "runs"),
+    logs: join(root, "logs"),
   };
 }
 
 export async function ensureStorageDirs(paths = getStoragePaths()): Promise<void> {
   await mkdir(paths.definitions, { recursive: true });
   await mkdir(paths.runs, { recursive: true });
+  await mkdir(paths.logs, { recursive: true });
 }
 
 export async function writeJsonAtomic<T>(

@@ -14,6 +14,7 @@ const main = defineCommand({
     add: () => import("./commands/add.js").then((module) => module.default),
     run: () => import("./commands/run.js").then((module) => module.default),
     ls: () => import("./commands/ls.js").then((module) => module.default),
+    logs: () => import("./commands/logs.js").then((module) => module.default),
     stop: () => import("./commands/stop.js").then((module) => module.default),
     rm: () => import("./commands/rm.js").then((module) => module.default),
   },
