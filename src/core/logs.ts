@@ -19,11 +19,8 @@ export function isLogHeaderLine(line: string): boolean {
 }
 
 export function logHeaderLabel(line: string): string | null {
-  if (!isLogHeaderLine(line)) {
-    return null;
-  }
-
-  return line.replace(LOG_HEADER_PATTERN, "");
+  const match = LOG_HEADER_PATTERN.exec(line);
+  return match ? line.slice(match[0].length) : null;
 }
 
 export function isAssistantHeaderLine(line: string): boolean {
@@ -59,6 +56,14 @@ export function runLogPath(paths: StoragePaths, runId: string): string {
   return join(paths.logs, `${runId}.log`);
 }
 
+function stripTrailingEmptyLines(lines: string[]): string[] {
+  let end = lines.length;
+  while (end > 0 && lines[end - 1] === "") {
+    end--;
+  }
+  return lines.slice(0, end);
+}
+
 export function truncateLogText(text: string, max = 200): string {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (normalized.length <= max) {
@@ -90,14 +95,21 @@ export function formatAssistantLogText(text: string, max = 4000): string {
   return `${truncated}...`;
 }
 
+async function writeRunLog(
+  runId: string,
+  text: string,
+  paths: StoragePaths,
+): Promise<void> {
+  await ensureStorageDirs(paths);
+  await appendFile(runLogPath(paths, runId), text, "utf8");
+}
+
 export async function appendRunLog(
   runId: string,
   message: string,
   paths = getStoragePaths(),
 ): Promise<void> {
-  await ensureStorageDirs(paths);
-  const line = `${formatLogHeader(message)}\n`;
-  await appendFile(runLogPath(paths, runId), line, "utf8");
+  await appendRunLogBlock(runId, message, "", paths);
 }
 
 export async function appendRunLogBlock(
@@ -106,10 +118,9 @@ export async function appendRunLogBlock(
   body: string,
   paths = getStoragePaths(),
 ): Promise<void> {
-  await ensureStorageDirs(paths);
   const header = `${formatLogHeader(label)}\n`;
   const content = body.length > 0 ? `${body}\n` : "";
-  await appendFile(runLogPath(paths, runId), `${header}${content}`, "utf8");
+  await writeRunLog(runId, `${header}${content}`, paths);
 }
 
 export async function readRunLog(
@@ -121,11 +132,7 @@ export async function readRunLog(
 
   try {
     const raw = await readFile(runLogPath(paths, runId), "utf8");
-    const lines = raw.split("\n");
-    while (lines.length > 0 && lines[lines.length - 1] === "") {
-      lines.pop();
-    }
-    return lines.slice(-tail);
+    return stripTrailingEmptyLines(raw.split("\n")).slice(-tail);
   } catch (error) {
     if (isErrnoCode(error, "ENOENT")) {
       return [];
@@ -153,37 +160,44 @@ export async function followRunLog(
     }
   }
 
+  async function pollAppend(): Promise<void> {
+    const content = await readFile(filePath);
+    if (content.length < offset) {
+      offset = 0;
+      partialLine = "";
+    }
+
+    if (content.length <= offset) {
+      return;
+    }
+
+    const newText = content.subarray(offset).toString("utf8");
+    offset = content.length;
+
+    const parsed = splitIncomingLogText(partialLine, newText);
+    partialLine = parsed.partialLine;
+    for (const line of parsed.completeLines) {
+      onLine(line);
+    }
+  }
+
   const interval = setInterval(() => {
     if (reading) {
       return;
     }
 
     reading = true;
-    void (async () => {
-      try {
-        const content = await readFile(filePath);
-        if (content.length <= offset) {
-          return;
-        }
-
-        const newText = content.subarray(offset).toString("utf8");
-        offset = content.length;
-
-        const parsed = splitIncomingLogText(partialLine, newText);
-        partialLine = parsed.partialLine;
-        for (const line of parsed.completeLines) {
-          onLine(line);
-        }
-      } catch (error) {
+    void pollAppend()
+      .catch((error) => {
         if (!isErrnoCode(error, "ENOENT")) {
           console.error(
             `failed to follow log for run "${runId}": ${getErrorMessage(error)}`,
           );
         }
-      } finally {
+      })
+      .finally(() => {
         reading = false;
-      }
-    })();
+      });
   }, FOLLOW_POLL_MS);
 
   return () => {

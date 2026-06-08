@@ -1,4 +1,4 @@
-import { appendFile } from "node:fs/promises";
+import { appendFile, writeFile } from "node:fs/promises";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   appendRunLog,
@@ -193,6 +193,29 @@ describe("followRunLog", () => {
 
     expect(received).toHaveLength(1);
     expect(received[0]).toContain("[partial line]");
+    stop();
+  });
+
+  it("recovers when the log file is truncated", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    const paths = getStoragePaths(homeDir);
+    const filePath = runLogPath(paths, "abc123");
+
+    await appendRunLog("abc123", "[start] existing", paths);
+
+    const received: string[] = [];
+    const stop = await followRunLog("abc123", (line) => received.push(line), paths);
+    await waitForFollowPolls();
+
+    await writeFile(filePath, "", "utf8");
+    await waitForFollowPolls();
+
+    await appendRunLog("abc123", "[after truncate] fresh", paths);
+    await waitForFollowPolls();
+
+    expect(received).toHaveLength(1);
+    expect(received[0]).toContain("[after truncate] fresh");
     stop();
   });
 });

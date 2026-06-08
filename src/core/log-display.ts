@@ -55,6 +55,14 @@ export interface LogLinePrinter {
   print(line: string): void;
 }
 
+function formatLogLine(line: string, inAssistantBlock: boolean): string {
+  if (inAssistantBlock && !isLogHeaderLine(line)) {
+    return renderMarkdownForTerminal(line);
+  }
+
+  return line;
+}
+
 export function createLogLinePrinter(
   output: LogLineOutput = (line) => console.log(line),
 ): LogLinePrinter {
@@ -63,18 +71,16 @@ export function createLogLinePrinter(
   return {
     print(line: string) {
       if (isAssistantHeaderLine(line)) {
-        output(line);
         inAssistantBlock = true;
+        output(line);
         return;
       }
 
-      if (inAssistantBlock && !isLogHeaderLine(line)) {
-        output(renderMarkdownForTerminal(line));
-        return;
+      if (isLogHeaderLine(line)) {
+        inAssistantBlock = false;
       }
 
-      inAssistantBlock = false;
-      output(line);
+      output(formatLogLine(line, inAssistantBlock));
     },
   };
 }
