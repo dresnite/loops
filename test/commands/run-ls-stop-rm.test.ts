@@ -7,12 +7,7 @@ import lsCommand from "../../src/commands/ls.js";
 import rmCommand from "../../src/commands/rm.js";
 import runCommandDef from "../../src/commands/run.js";
 import stopCommand from "../../src/commands/stop.js";
-import {
-  getRun,
-  listRuns,
-  resetWorkerSpawnerForTesting,
-  setWorkerSpawnerForTesting,
-} from "../../src/core/runner.js";
+import { getRun, listRuns } from "../../src/core/runner.js";
 import { getStoragePaths } from "../../src/core/storage.js";
 import {
   MockProvider,
@@ -20,25 +15,22 @@ import {
   setProviderForTesting,
 } from "../../src/providers/index.js";
 import { executeWorker } from "../../src/core/worker.js";
-import { setProcessAliveCheckerForTesting } from "../../src/core/process.js";
 import { saveRun } from "../../src/core/runner.js";
 import { createEmptyUsage } from "../../src/core/limits.js";
 import { createTempHome } from "../helpers/temp-home.js";
+import { setupTestRuntime } from "../helpers/test-runtime.js";
 
 const cleanups: Array<() => Promise<void>> = [];
 
 beforeEach(() => {
-  setProcessAliveCheckerForTesting(() => true);
+  setupTestRuntime({ workerPid: 9001 });
   resetMockProviderIds();
   setProviderForTesting(new MockProvider({ runs: [{}] }));
-  setWorkerSpawnerForTesting(() => ({ pid: 9001 }));
   vi.stubEnv("LOOPS_TEST_MODE", "1");
 });
 
 afterEach(async () => {
-  resetWorkerSpawnerForTesting();
   setProviderForTesting(null);
-  setProcessAliveCheckerForTesting(null);
   vi.unstubAllEnvs();
   delete process.env.LOOPS_TEST_MODE;
   await Promise.all(cleanups.map((cleanup) => cleanup()));
@@ -157,7 +149,7 @@ describe("loops run/ls/stop/rm", () => {
         runs: [{ status: "error", result: "startup failed: mock failure" }],
       }),
     );
-    setWorkerSpawnerForTesting(() => ({ pid: 0 }));
+    setupTestRuntime({ workerPid: 0 });
 
     await runCommand(addCommand, {
       rawArgs: ["refactor", "--prompt", "Improve structure"],
@@ -191,7 +183,7 @@ describe("loops run/ls/stop/rm", () => {
     cleanups.push(cleanup);
     vi.stubEnv("HOME", homeDir);
     const paths = getStoragePaths(homeDir);
-    setProcessAliveCheckerForTesting(() => false);
+    setupTestRuntime({ processAlive: false, workerPid: 9001 });
 
     await saveRun(
       {
@@ -242,7 +234,7 @@ describe("loops run/ls/stop/rm", () => {
       rawArgs: ["refactor", "--prompt", "Improve structure"],
     });
 
-    setWorkerSpawnerForTesting(() => ({ pid: 0 }));
+    setupTestRuntime({ workerPid: 0 });
 
     await runCommand(runCommandDef, {
       rawArgs: ["refactor", "--repo", repoPath, "--once"],

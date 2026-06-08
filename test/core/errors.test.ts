@@ -13,7 +13,13 @@ describe("getErrorMessage", () => {
 
 describe("isErrnoCode", () => {
   it("matches node errno codes", () => {
-    expect(isErrnoCode({ code: "ENOENT" }, "ENOENT")).toBe(true);
+    const error: unknown = { code: "ENOENT" };
+
+    expect(isErrnoCode(error, "ENOENT")).toBe(true);
+    if (isErrnoCode(error, "ENOENT")) {
+      expect(error.code).toBe("ENOENT");
+    }
+
     expect(isErrnoCode({ code: "ENOENT" }, "ESRCH")).toBe(false);
     expect(isErrnoCode(null, "ENOENT")).toBe(false);
   });

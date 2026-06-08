@@ -9,7 +9,7 @@ import {
 } from "./limits.js";
 import { appendRunLog } from "./logs.js";
 import { isWorkerCliInvocation } from "./paths.js";
-import { isActiveRun } from "./resolve.js";
+import { isActiveRun } from "./run-state.js";
 import { getRun, saveRun } from "./runner.js";
 import { StreamEventLogger } from "./stream-log.js";
 import { getStoragePaths, readJson } from "./storage.js";

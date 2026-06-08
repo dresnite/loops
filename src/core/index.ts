@@ -8,7 +8,8 @@ export {
   startRun,
   stopRun,
 } from "./runner.js";
-export { isActiveRun, resolveRunTarget } from "./resolve.js";
+export { isActiveRun } from "./run-state.js";
+export { resolveRunTarget, RunNotFoundError } from "./resolve.js";
 export {
   appendRunLog,
   followRunLog,

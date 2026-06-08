@@ -1,8 +1,12 @@
 import type { LoopRun } from "../types.js";
 import { isErrnoCode } from "./errors.js";
-import { isActiveRun } from "./resolve.js";
+import { isActiveRun } from "./run-state.js";
 
 export const WORKER_EXITED_UNEXPECTEDLY = "worker process exited unexpectedly";
+
+export function isWorkerExitedError(run: LoopRun): boolean {
+  return run.status === "error" && run.error === WORKER_EXITED_UNEXPECTEDLY;
+}
 
 type ProcessAliveChecker = (pid: number) => boolean;
 

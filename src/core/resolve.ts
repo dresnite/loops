@@ -1,4 +1,5 @@
 import type { LoopRun } from "../types.js";
+import { isActiveRun } from "./run-state.js";
 
 export class RunNotFoundError extends Error {
   readonly target: string;
@@ -7,11 +8,8 @@ export class RunNotFoundError extends Error {
     super(`No run found for "${target}"`);
     this.name = "RunNotFoundError";
     this.target = target;
+    Object.setPrototypeOf(this, new.target.prototype);
   }
-}
-
-export function isActiveRun(run: LoopRun): boolean {
-  return run.status === "running" || run.status === "starting";
 }
 
 export interface ResolveRunTargetOptions {
@@ -23,8 +21,8 @@ export function resolveRunTarget(
   runs: LoopRun[],
   options: ResolveRunTargetOptions = {},
 ): LoopRun {
-  const idPool = options.activeOnly ? runs.filter(isActiveRun) : runs;
-  const byIdPrefix = idPool.filter((run) => run.id.startsWith(target));
+  const pool = options.activeOnly ? runs.filter(isActiveRun) : runs;
+  const byIdPrefix = pool.filter((run) => run.id.startsWith(target));
 
   if (byIdPrefix.length === 1) {
     return byIdPrefix[0]!;
@@ -36,8 +34,7 @@ export function resolveRunTarget(
     );
   }
 
-  const namePool = options.activeOnly ? runs.filter(isActiveRun) : runs;
-  const byName = namePool.filter((run) => run.loopName === target);
+  const byName = pool.filter((run) => run.loopName === target);
 
   if (byName.length === 1) {
     return byName[0]!;

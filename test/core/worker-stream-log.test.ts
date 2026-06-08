@@ -1,7 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "pathe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { setProcessAliveCheckerForTesting } from "../../src/core/process.js";
 import { readRunLog } from "../../src/core/logs.js";
 import { addLoop } from "../../src/core/registry.js";
 import { startRun } from "../../src/core/runner.js";
@@ -13,13 +12,14 @@ import {
   setProviderForTesting,
 } from "../../src/providers/index.js";
 import { createTempHome } from "../helpers/temp-home.js";
+import { setupTestRuntime } from "../helpers/test-runtime.js";
 
 const cleanups: Array<() => Promise<void>> = [];
 
 beforeEach(() => {
   vi.unstubAllEnvs();
   delete process.env.LOOPS_TEST_MODE;
-  setProcessAliveCheckerForTesting(() => true);
+  setupTestRuntime();
   resetMockProviderIds();
   setProviderForTesting(
     new MockProvider({
@@ -34,7 +34,6 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  setProcessAliveCheckerForTesting(null);
   setProviderForTesting(null);
   vi.unstubAllEnvs();
   await Promise.all(cleanups.map((cleanup) => cleanup()));

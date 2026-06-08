@@ -1,5 +1,5 @@
 import { defineCommand } from "citty";
-import { isActiveRun } from "../core/resolve.js";
+import { isActiveRun } from "../core/run-state.js";
 import { listRuns } from "../core/runner.js";
 import { formatRunLine } from "./_shared.js";
 

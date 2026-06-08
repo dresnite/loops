@@ -10,6 +10,7 @@ export default async function globalSetup(): Promise<void> {
   try {
     await access(distCliPath);
   } catch {
+    // E2E tests execute the built CLI; build once before the suite runs.
     await execa("npm", ["run", "build"], { cwd: projectRoot });
   }
 }

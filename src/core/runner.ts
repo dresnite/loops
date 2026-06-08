@@ -10,13 +10,10 @@ import { isErrnoCode } from "./errors.js";
 import { createEmptyUsage } from "./limits.js";
 import { runLogPath } from "./logs.js";
 import { getWorkerScriptPath } from "./paths.js";
-import {
-  reconcileRunState,
-  shouldReconcileRun,
-  WORKER_EXITED_UNEXPECTEDLY,
-} from "./process.js";
+import { isWorkerExitedError, reconcileRunState } from "./process.js";
 import { resolvePrompt } from "./prompt.js";
-import { isActiveRun, resolveRunTarget, RunNotFoundError } from "./resolve.js";
+import { resolveRunTarget, RunNotFoundError } from "./resolve.js";
+import { isActiveRun } from "./run-state.js";
 import { getLoop } from "./registry.js";
 import {
   ensureStorageDirs,
@@ -43,11 +40,11 @@ async function reconcileAndPersistRun(
   run: LoopRun,
   paths: StoragePaths,
 ): Promise<LoopRun> {
-  if (!shouldReconcileRun(run)) {
+  const reconciled = reconcileRunState(run);
+  if (reconciled === run) {
     return run;
   }
 
-  const reconciled = reconcileRunState(run);
   await saveRun(reconciled, paths);
   return reconciled;
 }
@@ -230,7 +227,7 @@ export async function stopRun(
     }
 
     const latest = resolveRunTarget(target, runs, { activeOnly: false });
-    if (latest.status === "error" && latest.error === WORKER_EXITED_UNEXPECTEDLY) {
+    if (isWorkerExitedError(latest)) {
       latest.status = "stopped";
       latest.error = undefined;
       await saveRun(latest, paths);

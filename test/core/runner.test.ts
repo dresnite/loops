@@ -5,8 +5,6 @@ import { addLoop } from "../../src/core/registry.js";
 import {
   getRun,
   listActiveRunsForLoop,
-  setWorkerSpawnerForTesting,
-  resetWorkerSpawnerForTesting,
   startRun,
   stopRun,
 } from "../../src/core/runner.js";
@@ -18,25 +16,22 @@ import {
   setProviderForTesting,
 } from "../../src/providers/index.js";
 import { executeWorker } from "../../src/core/worker.js";
-import { setProcessAliveCheckerForTesting } from "../../src/core/process.js";
 import { createTempHome } from "../helpers/temp-home.js";
+import { setupTestRuntime } from "../helpers/test-runtime.js";
 
 const cleanups: Array<() => Promise<void>> = [];
 
 beforeEach(() => {
   vi.unstubAllEnvs();
   delete process.env.LOOPS_TEST_MODE;
-  setProcessAliveCheckerForTesting(() => true);
+  setupTestRuntime({ workerPid: 4242 });
 
   resetMockProviderIds();
   setProviderForTesting(new MockProvider({ runs: [{}, {}] }));
-  setWorkerSpawnerForTesting(() => ({ pid: 4242 }));
 });
 
 afterEach(async () => {
-  resetWorkerSpawnerForTesting();
   setProviderForTesting(null);
-  setProcessAliveCheckerForTesting(null);
   vi.unstubAllEnvs();
   await Promise.all(cleanups.map((cleanup) => cleanup()));
   cleanups.length = 0;
