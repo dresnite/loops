@@ -10,7 +10,7 @@ This guide walks you through installing Loops, saving your Cursor API key, and r
 ## Install
 
 ```bash
-npm install -g loops
+npm install -g @dresnite/loops
 ```
 
 Verify the install:

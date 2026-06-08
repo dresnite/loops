@@ -117,7 +117,7 @@ import {
   getStoragePaths,
   setProviderKey,
   requireCursorApiKey,
-} from "loops";
+} from "@dresnite/loops";
 ```
 
 See TypeScript definitions in `dist/index.d.mts` after building.

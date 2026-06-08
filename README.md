@@ -9,13 +9,13 @@ Loops turns ad-hoc agent prompts into durable, repeatable workflows. Define a lo
 ## Install
 
 ```bash
-npm install -g loops
+npm install -g @dresnite/loops
 ```
 
 Or run without installing:
 
 ```bash
-npx loops --help
+npx @dresnite/loops --help
 ```
 
 ## Quick start

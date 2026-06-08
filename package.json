@@ -1,5 +1,5 @@
 {
-  "name": "loops",
+  "name": "@dresnite/loops",
   "version": "0.1.0",
   "description": "CLI tool for creating reusable AI agent workflows",
   "type": "module",
@@ -37,6 +37,9 @@
     "loops"
   ],
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@clack/prompts": "^0.10.1",
     "@cursor/sdk": "^1.0.16",
