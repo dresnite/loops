@@ -9,6 +9,7 @@ import {
 } from "./limits.js";
 import { appendRunLog } from "./logs.js";
 import { isWorkerCliInvocation } from "./paths.js";
+import { isActiveRun } from "./resolve.js";
 import { getRun, saveRun } from "./runner.js";
 import { StreamEventLogger } from "./stream-log.js";
 import { getStoragePaths, readJson } from "./storage.js";
@@ -228,7 +229,7 @@ const isMainModule = isWorkerCliInvocation(process.argv, import.meta.url);
 async function markRunFailed(runId: string, message: string): Promise<void> {
   const paths = getStoragePaths();
   const run = await readJson<LoopRun>(join(paths.runs, `${runId}.json`));
-  if (!run || (run.status !== "running" && run.status !== "starting")) {
+  if (!run || !isActiveRun(run)) {
     return;
   }
 

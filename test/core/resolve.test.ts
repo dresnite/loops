@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveRunTarget } from "../../src/core/resolve.js";
+import { resolveRunTarget, RunNotFoundError } from "../../src/core/resolve.js";
 import type { LoopRun } from "../../src/types.js";
 
 function makeRun(overrides: Partial<LoopRun>): LoopRun {
@@ -61,6 +61,12 @@ describe("resolveRunTarget", () => {
     ]);
 
     expect(run.id).toBe("newer111");
+  });
+
+  it("throws RunNotFoundError when no run matches", () => {
+    expect(() => resolveRunTarget("missing", [makeRun({ id: "a1b2c3d4" })])).toThrow(
+      RunNotFoundError,
+    );
   });
 
   it("throws when loop name is ambiguous for active runs", () => {

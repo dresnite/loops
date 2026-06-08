@@ -6,13 +6,17 @@ import { randomBytes } from "node:crypto";
 import { DEFAULT_PROVIDER } from "../constants.js";
 import { assertSupportedProvider } from "../providers/index.js";
 import type { LoopRun, StartRunInput } from "../types.js";
-import { getErrorMessage, isErrnoCode } from "./errors.js";
+import { isErrnoCode } from "./errors.js";
 import { createEmptyUsage } from "./limits.js";
 import { runLogPath } from "./logs.js";
 import { getWorkerScriptPath } from "./paths.js";
-import { reconcileRunState, shouldReconcileRun } from "./process.js";
+import {
+  reconcileRunState,
+  shouldReconcileRun,
+  WORKER_EXITED_UNEXPECTEDLY,
+} from "./process.js";
 import { resolvePrompt } from "./prompt.js";
-import { isActiveRun, resolveRunTarget } from "./resolve.js";
+import { isActiveRun, resolveRunTarget, RunNotFoundError } from "./resolve.js";
 import { getLoop } from "./registry.js";
 import {
   ensureStorageDirs,
@@ -221,13 +225,12 @@ export async function stopRun(
   try {
     run = resolveRunTarget(target, runs, { activeOnly: true });
   } catch (error) {
-    const message = getErrorMessage(error);
-    if (!message.startsWith('No run found for "')) {
+    if (!(error instanceof RunNotFoundError)) {
       throw error;
     }
 
     const latest = resolveRunTarget(target, runs, { activeOnly: false });
-    if (latest.status === "error" && latest.error === "worker process exited unexpectedly") {
+    if (latest.status === "error" && latest.error === WORKER_EXITED_UNEXPECTEDLY) {
       latest.status = "stopped";
       latest.error = undefined;
       await saveRun(latest, paths);

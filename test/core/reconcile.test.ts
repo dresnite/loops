@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   reconcileRunState,
   setProcessAliveCheckerForTesting,
+  WORKER_EXITED_UNEXPECTEDLY,
 } from "../../src/core/process.js";
 import {
   getRun,
@@ -53,7 +54,7 @@ describe("reconcileRun", () => {
 
     const reconciled = reconcileRunState(makeZombieRun());
     expect(reconciled.status).toBe("error");
-    expect(reconciled.error).toBe("worker process exited unexpectedly");
+    expect(reconciled.error).toBe(WORKER_EXITED_UNEXPECTEDLY);
     expect(reconciled.pid).toBeUndefined();
   });
 
@@ -70,7 +71,7 @@ describe("reconcileRun", () => {
 
     const loaded = await getRun("deadbeef", paths);
     expect(loaded?.status).toBe("error");
-    expect(loaded?.error).toBe("worker process exited unexpectedly");
+    expect(loaded?.error).toBe(WORKER_EXITED_UNEXPECTEDLY);
   });
 
   it("stops reconciled zombie runs by loop name", async () => {

@@ -1,5 +1,8 @@
 import type { LoopRun } from "../types.js";
 import { isErrnoCode } from "./errors.js";
+import { isActiveRun } from "./resolve.js";
+
+export const WORKER_EXITED_UNEXPECTEDLY = "worker process exited unexpectedly";
 
 type ProcessAliveChecker = (pid: number) => boolean;
 
@@ -30,9 +33,7 @@ export function setProcessAliveCheckerForTesting(
 
 export function shouldReconcileRun(run: LoopRun): boolean {
   return (
-    (run.status === "running" || run.status === "starting") &&
-    run.pid !== undefined &&
-    !isProcessAlive(run.pid)
+    isActiveRun(run) && run.pid !== undefined && !isProcessAlive(run.pid)
   );
 }
 
@@ -44,7 +45,7 @@ export function reconcileRunState(run: LoopRun): LoopRun {
   return {
     ...run,
     status: "error",
-    error: "worker process exited unexpectedly",
+    error: WORKER_EXITED_UNEXPECTEDLY,
     pid: undefined,
   };
 }

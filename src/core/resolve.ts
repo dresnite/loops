@@ -1,5 +1,15 @@
 import type { LoopRun } from "../types.js";
 
+export class RunNotFoundError extends Error {
+  readonly target: string;
+
+  constructor(target: string) {
+    super(`No run found for "${target}"`);
+    this.name = "RunNotFoundError";
+    this.target = target;
+  }
+}
+
 export function isActiveRun(run: LoopRun): boolean {
   return run.status === "running" || run.status === "starting";
 }
@@ -43,5 +53,5 @@ export function resolveRunTarget(
     return byName.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]!;
   }
 
-  throw new Error(`No run found for "${target}"`);
+  throw new RunNotFoundError(target);
 }
