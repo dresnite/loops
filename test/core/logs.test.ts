@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   appendRunLog,
   appendRunLogBlock,
+  ASSISTANT_LOG_LABEL,
   FOLLOW_POLL_MS,
   formatAssistantLogText,
   formatLogHeader,
@@ -11,6 +12,7 @@ import {
   isLogHeaderLine,
   readRunLog,
   runLogPath,
+  splitIncomingLogText,
   truncateLogText,
 } from "../../src/core/logs.js";
 import { getStoragePaths } from "../../src/core/storage.js";
@@ -25,12 +27,40 @@ afterEach(async () => {
 
 describe("log format", () => {
   it("writes and detects timestamped header lines", () => {
-    const header = formatLogHeader("[assistant]", new Date("2026-06-08T15:14:48.516Z"));
+    const header = formatLogHeader(
+      ASSISTANT_LOG_LABEL,
+      new Date("2026-06-08T15:14:48.516Z"),
+    );
 
     expect(header).toBe("2026-06-08T15:14:48.516Z [assistant]");
     expect(isLogHeaderLine(header)).toBe(true);
     expect(isAssistantHeaderLine(header)).toBe(true);
     expect(isAssistantHeaderLine("plain text")).toBe(false);
+    expect(isAssistantHeaderLine(formatLogHeader("[task 1] finished"))).toBe(
+      false,
+    );
+  });
+
+  it("splits complete and partial lines from appended log text", () => {
+    expect(splitIncomingLogText("", "line one\nline two\n")).toEqual({
+      partialLine: "",
+      completeLines: ["line one", "line two"],
+    });
+
+    expect(splitIncomingLogText("2026-06-08T15:14:48.516Z [partial", " line]\n")).toEqual({
+      partialLine: "",
+      completeLines: ["2026-06-08T15:14:48.516Z [partial line]"],
+    });
+
+    expect(splitIncomingLogText("", "still writing")).toEqual({
+      partialLine: "still writing",
+      completeLines: [],
+    });
+
+    expect(splitIncomingLogText("still ", "writing")).toEqual({
+      partialLine: "still writing",
+      completeLines: [],
+    });
   });
 });
 
@@ -75,10 +105,10 @@ describe("logs", () => {
     cleanups.push(cleanup);
     const paths = getStoragePaths(homeDir);
 
-    await appendRunLogBlock("abc123", "[assistant]", "# Title\n\nBody", paths);
+    await appendRunLogBlock("abc123", ASSISTANT_LOG_LABEL, "# Title\n\nBody", paths);
 
     const lines = await readRunLog("abc123", { tail: 10 }, paths);
-    expect(lines[0]).toContain("[assistant]");
+    expect(lines[0]).toContain(ASSISTANT_LOG_LABEL);
     expect(lines[1]).toBe("# Title");
     expect(lines[2]).toBe("");
     expect(lines[3]).toBe("Body");

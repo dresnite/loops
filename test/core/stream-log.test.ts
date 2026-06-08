@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ASSISTANT_LOG_LABEL } from "../../src/core/logs.js";
 import {
   formatToolActivity,
   StreamEventLogger,
@@ -44,7 +45,7 @@ describe("StreamEventLogger", () => {
 
     expect(writer.lines).toEqual([]);
     expect(writer.blocks).toEqual([
-      { label: "[assistant]", body: "I'll review the code." },
+      { label: ASSISTANT_LOG_LABEL, body: "I'll review the code." },
     ]);
   });
 
@@ -57,7 +58,7 @@ describe("StreamEventLogger", () => {
     await logger.handle({ type: "tool_call", toolName: "read" });
 
     expect(writer.blocks).toEqual([
-      { label: "[assistant]", body: "Checking files." },
+      { label: ASSISTANT_LOG_LABEL, body: "Checking files." },
     ]);
     expect(writer.lines).toEqual(["[tool] reading..."]);
   });
@@ -102,7 +103,7 @@ describe("StreamEventLogger", () => {
       "[tool] reading...",
     ]);
     expect(writer.blocks).toEqual([
-      { label: "[assistant]", body: "Done reviewing." },
+      { label: ASSISTANT_LOG_LABEL, body: "Done reviewing." },
     ]);
   });
 

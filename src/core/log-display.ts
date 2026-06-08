@@ -53,24 +53,26 @@ export interface LogLinePrinter {
   print(line: string): void;
 }
 
-export function createLogLinePrinter(): LogLinePrinter {
+export function createLogLinePrinter(
+  output: (line: string) => void = (line) => console.log(line),
+): LogLinePrinter {
   let inAssistantBlock = false;
 
   return {
     print(line: string) {
       if (isAssistantHeaderLine(line)) {
-        console.log(line);
+        output(line);
         inAssistantBlock = true;
         return;
       }
 
       if (inAssistantBlock && !isLogHeaderLine(line)) {
-        console.log(renderMarkdownForTerminal(line));
+        output(renderMarkdownForTerminal(line));
         return;
       }
 
       inAssistantBlock = false;
-      console.log(line);
+      output(line);
     },
   };
 }

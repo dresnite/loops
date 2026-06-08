@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "pathe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readRunLog } from "../../src/core/logs.js";
+import { ASSISTANT_LOG_LABEL, readRunLog } from "../../src/core/logs.js";
 import { addLoop } from "../../src/core/registry.js";
 import { startRun } from "../../src/core/runner.js";
 import { getStoragePaths } from "../../src/core/storage.js";
@@ -69,7 +69,9 @@ describe("worker stream logging", () => {
     await executeWorker(run.id);
 
     const lines = await readRunLog(run.id, { tail: 20 }, paths);
-    const assistantHeader = lines.find((line) => line.includes("[assistant]"));
+    const assistantHeader = lines.find((line) =>
+      line.includes(ASSISTANT_LOG_LABEL),
+    );
     const assistantBody = lines.find((line) => line.includes("I'll review the code."));
     const toolLines = lines.filter((line) => line.includes("[tool]"));
 

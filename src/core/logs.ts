@@ -20,9 +20,28 @@ export function isLogHeaderLine(line: string): boolean {
 
 export function isAssistantHeaderLine(line: string): boolean {
   return (
-    LOG_HEADER_PATTERN.test(line) &&
-    line.trimEnd().endsWith(ASSISTANT_LOG_LABEL)
+    isLogHeaderLine(line) && line.trimEnd().endsWith(ASSISTANT_LOG_LABEL)
   );
+}
+
+export function splitIncomingLogText(
+  previousPartial: string,
+  newText: string,
+): { partialLine: string; completeLines: string[] } {
+  const combined = previousPartial + newText;
+  const chunks = combined.split("\n");
+
+  if (combined.endsWith("\n")) {
+    return {
+      partialLine: "",
+      completeLines: chunks.slice(0, -1),
+    };
+  }
+
+  return {
+    partialLine: chunks.pop() ?? "",
+    completeLines: chunks,
+  };
 }
 
 export function runLogPath(paths: StoragePaths, runId: string): string {
@@ -139,19 +158,10 @@ export async function followRunLog(
         const newText = content.subarray(offset).toString("utf8");
         offset = content.length;
 
-        const combined = partialLine + newText;
-        const chunks = combined.split("\n");
-
-        if (combined.endsWith("\n")) {
-          partialLine = "";
-          for (const line of chunks.slice(0, -1)) {
-            onLine(line);
-          }
-        } else {
-          partialLine = chunks.pop() ?? "";
-          for (const line of chunks) {
-            onLine(line);
-          }
+        const parsed = splitIncomingLogText(partialLine, newText);
+        partialLine = parsed.partialLine;
+        for (const line of parsed.completeLines) {
+          onLine(line);
         }
       } catch (error) {
         if (!isErrnoCode(error, "ENOENT")) {

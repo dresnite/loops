@@ -1,5 +1,5 @@
 import type { StreamEvent } from "../providers/types.js";
-import { formatAssistantLogText } from "./logs.js";
+import { ASSISTANT_LOG_LABEL, formatAssistantLogText } from "./logs.js";
 
 export interface StreamLogWriter {
   writeLine(message: string): Promise<void>;
@@ -70,6 +70,6 @@ export class StreamEventLogger {
       return;
     }
 
-    await this.writer.writeBlock("[assistant]", text);
+    await this.writer.writeBlock(ASSISTANT_LOG_LABEL, text);
   }
 }
