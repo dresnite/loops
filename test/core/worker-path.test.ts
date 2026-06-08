@@ -9,14 +9,16 @@ describe("worker script path", () => {
     const distDir = join(projectRoot, "dist");
 
     const entries = await readdir(distDir);
-    const runner = entries.find((entry) => entry.startsWith("runner-") && entry.endsWith(".mjs"));
+    const runner = entries.find(
+      (entry) => entry.startsWith("runner-") && entry.endsWith(".mjs"),
+    );
     expect(runner).toBeDefined();
 
     const runnerSource = await readFile(`${distDir}/${runner}`, "utf8");
-    expect(runnerSource).toContain("./worker.mjs");
+    expect(runnerSource).toContain("function getWorkerScriptPath");
+    expect(runnerSource).toMatch(/\.\/worker\.\$\{extension\}/);
     expect(runnerSource).not.toContain("../../worker.mjs");
 
-    const workerExists = entries.includes("worker.mjs");
-    expect(workerExists).toBe(true);
+    expect(entries).toContain("worker.mjs");
   });
 });

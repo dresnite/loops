@@ -72,8 +72,8 @@ export default defineCommand({
         resolve();
       };
 
-      process.on("SIGINT", onSignal);
-      process.on("SIGTERM", onSignal);
+      process.once("SIGINT", onSignal);
+      process.once("SIGTERM", onSignal);
     });
   },
 });

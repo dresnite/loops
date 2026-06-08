@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promise
 import { homedir } from "node:os";
 import { join } from "pathe";
 import { LOOPS_DIR_NAME } from "../constants.js";
+import { isErrnoCode } from "./errors.js";
 
 const writeQueues = new Map<string, Promise<void>>();
 
@@ -64,7 +65,7 @@ export async function readJson<T>(filePath: string): Promise<T | null> {
     const raw = await readFile(filePath, "utf8");
     return JSON.parse(raw) as T;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+    if (isErrnoCode(error, "ENOENT")) {
       return null;
     }
     throw error;
@@ -76,7 +77,7 @@ export async function listJsonFiles(dirPath: string): Promise<string[]> {
     const entries = await readdir(dirPath);
     return entries.filter((entry) => entry.endsWith(".json"));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+    if (isErrnoCode(error, "ENOENT")) {
       return [];
     }
     throw error;
@@ -87,7 +88,7 @@ export async function removeFile(filePath: string): Promise<void> {
   try {
     await rm(filePath);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+    if (!isErrnoCode(error, "ENOENT")) {
       throw error;
     }
   }

@@ -1,4 +1,5 @@
 import { defineCommand } from "citty";
+import { isActiveRun } from "../core/resolve.js";
 import { listRuns } from "../core/runner.js";
 import { formatRunLine } from "./_shared.js";
 
@@ -37,10 +38,7 @@ export default defineCommand({
     }
 
     const visible = runs.filter(
-      (run) =>
-        run.status === "running" ||
-        run.status === "starting" ||
-        run.status === "error",
+      (run) => isActiveRun(run) || run.status === "error",
     );
 
     if (visible.length === 0) {

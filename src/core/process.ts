@@ -1,4 +1,5 @@
 import type { LoopRun } from "../types.js";
+import { isErrnoCode } from "./errors.js";
 
 type ProcessAliveChecker = (pid: number) => boolean;
 
@@ -9,7 +10,7 @@ function defaultProcessAliveChecker(pid: number): boolean {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ESRCH") {
+    if (isErrnoCode(error, "ESRCH")) {
       return false;
     }
     throw error;

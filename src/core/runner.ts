@@ -1,18 +1,19 @@
 import { spawn } from "node:child_process";
 import { openSync } from "node:fs";
 import { access } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { join } from "pathe";
 import { randomBytes } from "node:crypto";
 import { DEFAULT_PROVIDER } from "../constants.js";
 import { assertSupportedProvider } from "../providers/index.js";
 import type { LoopRun, StartRunInput } from "../types.js";
+import { getErrorMessage, isErrnoCode } from "./errors.js";
 import { createEmptyUsage } from "./limits.js";
+import { runLogPath } from "./logs.js";
+import { getWorkerScriptPath } from "./paths.js";
 import { reconcileRunState, shouldReconcileRun } from "./process.js";
 import { resolvePrompt } from "./prompt.js";
-import { resolveRunTarget } from "./resolve.js";
+import { isActiveRun, resolveRunTarget } from "./resolve.js";
 import { getLoop } from "./registry.js";
-import { runLogPath } from "./logs.js";
 import {
   ensureStorageDirs,
   getStoragePaths,
@@ -93,11 +94,7 @@ export async function listActiveRunsForLoop(
   paths = getStoragePaths(),
 ): Promise<LoopRun[]> {
   const runs = await listRuns(paths);
-  return runs.filter(
-    (run) =>
-      run.loopName === loopName &&
-      (run.status === "running" || run.status === "starting"),
-  );
+  return runs.filter((run) => run.loopName === loopName && isActiveRun(run));
 }
 
 export { resolveRunTarget } from "./resolve.js";
@@ -108,14 +105,6 @@ async function assertRepoExists(repoPath: string): Promise<void> {
   } catch {
     throw new Error(`Repository path does not exist: ${repoPath}`);
   }
-}
-
-function getWorkerScriptPath(): string {
-  const thisFile = fileURLToPath(import.meta.url);
-  if (thisFile.includes("/dist/")) {
-    return fileURLToPath(new URL("./worker.mjs", import.meta.url));
-  }
-  return fileURLToPath(new URL("./worker.ts", import.meta.url));
 }
 
 export type WorkerSpawner = (
@@ -211,7 +200,7 @@ export async function startRun(
   await saveRun(run, paths);
 
   if (process.env.LOOPS_TEST_MODE !== "1") {
-    const workerScript = getWorkerScriptPath();
+    const workerScript = getWorkerScriptPath(import.meta.url);
     const spawnResult = await workerSpawner(workerScript, [run.id]);
     run.pid = spawnResult.pid;
   }
@@ -232,7 +221,7 @@ export async function stopRun(
   try {
     run = resolveRunTarget(target, runs, { activeOnly: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     if (!message.startsWith('No run found for "')) {
       throw error;
     }
@@ -248,7 +237,7 @@ export async function stopRun(
     throw error;
   }
 
-  if (run.status !== "running" && run.status !== "starting") {
+  if (!isActiveRun(run)) {
     throw new Error(`Run "${run.id}" is not active (status: ${run.status})`);
   }
 
@@ -256,7 +245,7 @@ export async function stopRun(
     try {
       process.kill(run.pid, "SIGTERM");
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ESRCH") {
+      if (!isErrnoCode(error, "ESRCH")) {
         throw error;
       }
     }

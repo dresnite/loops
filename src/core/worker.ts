@@ -1,13 +1,14 @@
 import { join } from "pathe";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import { getProvider } from "../providers/index.js";
 import type { LoopRun, TokenUsage } from "../types.js";
+import { getErrorMessage } from "./errors.js";
 import {
   estimateCostUsd,
   mergeUsage,
   shouldStopForLimits,
 } from "./limits.js";
 import { appendRunLog } from "./logs.js";
+import { isWorkerCliInvocation } from "./paths.js";
 import { getRun, saveRun } from "./runner.js";
 import { StreamEventLogger } from "./stream-log.js";
 import { getStoragePaths, readJson } from "./storage.js";
@@ -37,8 +38,7 @@ function createDebouncedRunSaver(runId: string): {
     const snapshot = latestRun;
     latestRun = undefined;
     pendingSave = saveRun(snapshot).catch(async (error) => {
-      const message = error instanceof Error ? error.message : String(error);
-      await log(runId, `[error] failed to persist run state: ${message}`);
+      await log(runId, `[error] failed to persist run state: ${getErrorMessage(error)}`);
     });
     await pendingSave;
     pendingSave = undefined;
@@ -200,7 +200,7 @@ export async function executeWorker(runId: string): Promise<number> {
     }
   } catch (error) {
     run.status = "error";
-    run.error = error instanceof Error ? error.message : String(error);
+    run.error = getErrorMessage(error);
     await saveRun(run, paths);
     await log(run.id, `[error] ${run.error}`);
 
@@ -223,30 +223,7 @@ async function main(): Promise<void> {
   process.exit(exitCode);
 }
 
-function resolveArgPath(arg: string): string {
-  try {
-    return fileURLToPath(arg);
-  } catch {
-    return fileURLToPath(pathToFileURL(arg).href);
-  }
-}
-
-function isWorkerCliInvocation(): boolean {
-  if (process.argv[1] === undefined) {
-    return false;
-  }
-
-  const invoked = resolveArgPath(process.argv[1]);
-  const thisFile = fileURLToPath(import.meta.url);
-
-  return (
-    invoked === thisFile ||
-    invoked.endsWith("/worker.mjs") ||
-    invoked.endsWith("\\worker.mjs")
-  );
-}
-
-const isMainModule = isWorkerCliInvocation();
+const isMainModule = isWorkerCliInvocation(process.argv, import.meta.url);
 
 async function markRunFailed(runId: string, message: string): Promise<void> {
   const paths = getStoragePaths();
@@ -264,7 +241,7 @@ async function markRunFailed(runId: string, message: string): Promise<void> {
 if (isMainModule) {
   main().catch(async (error) => {
     const runId = process.argv[2];
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     console.error(message);
 
     if (runId) {

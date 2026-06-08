@@ -1,15 +1,12 @@
 import { appendFile, readFile, stat } from "node:fs/promises";
 import { join } from "pathe";
+import { isErrnoCode } from "./errors.js";
 import { ensureStorageDirs, getStoragePaths, type StoragePaths } from "./storage.js";
 
 const FOLLOW_POLL_MS = 500;
 
 export function runLogPath(paths: StoragePaths, runId: string): string {
   return join(paths.logs, `${runId}.log`);
-}
-
-function logPath(paths: StoragePaths, runId: string): string {
-  return runLogPath(paths, runId);
 }
 
 export function truncateLogText(text: string, max = 200): string {
@@ -32,7 +29,7 @@ export async function appendRunLog(
 ): Promise<void> {
   await ensureStorageDirs(paths);
   const line = `${new Date().toISOString()} ${message}\n`;
-  await appendFile(logPath(paths, runId), line, "utf8");
+  await appendFile(runLogPath(paths, runId), line, "utf8");
 }
 
 export async function readRunLog(
@@ -43,11 +40,11 @@ export async function readRunLog(
   const tail = options.tail ?? 50;
 
   try {
-    const raw = await readFile(logPath(paths, runId), "utf8");
+    const raw = await readFile(runLogPath(paths, runId), "utf8");
     const lines = raw.split("\n").filter((line) => line.length > 0);
     return lines.slice(-tail);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+    if (isErrnoCode(error, "ENOENT")) {
       return [];
     }
     throw error;
@@ -59,19 +56,25 @@ export async function followRunLog(
   onLine: (line: string) => void,
   paths = getStoragePaths(),
 ): Promise<() => void> {
-  const filePath = logPath(paths, runId);
+  const filePath = runLogPath(paths, runId);
   let offset = 0;
+  let reading = false;
 
   try {
     const { size } = await stat(filePath);
     offset = size;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+    if (!isErrnoCode(error, "ENOENT")) {
       throw error;
     }
   }
 
   const interval = setInterval(() => {
+    if (reading) {
+      return;
+    }
+
+    reading = true;
     void (async () => {
       try {
         const content = await readFile(filePath);
@@ -86,9 +89,11 @@ export async function followRunLog(
           onLine(line);
         }
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        if (!isErrnoCode(error, "ENOENT")) {
           throw error;
         }
+      } finally {
+        reading = false;
       }
     })();
   }, FOLLOW_POLL_MS);

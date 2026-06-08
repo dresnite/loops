@@ -2,15 +2,11 @@ import { execa } from "execa";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "pathe";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTempHome } from "../helpers/temp-home.js";
 
 const projectRoot = fileURLToPath(new URL("../..", import.meta.url));
 const cleanups: Array<() => Promise<void>> = [];
-
-beforeAll(async () => {
-  await execa("npm", ["run", "build"], { cwd: projectRoot });
-});
 
 afterEach(async () => {
   vi.unstubAllEnvs();
