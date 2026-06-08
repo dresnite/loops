@@ -18,16 +18,27 @@ export function isLogHeaderLine(line: string): boolean {
   return LOG_HEADER_PATTERN.test(line);
 }
 
+export function logHeaderLabel(line: string): string | null {
+  if (!isLogHeaderLine(line)) {
+    return null;
+  }
+
+  return line.replace(LOG_HEADER_PATTERN, "");
+}
+
 export function isAssistantHeaderLine(line: string): boolean {
-  return (
-    isLogHeaderLine(line) && line.trimEnd().endsWith(ASSISTANT_LOG_LABEL)
-  );
+  return logHeaderLabel(line)?.trimEnd() === ASSISTANT_LOG_LABEL;
+}
+
+export interface IncomingLogTextSplit {
+  partialLine: string;
+  completeLines: string[];
 }
 
 export function splitIncomingLogText(
   previousPartial: string,
   newText: string,
-): { partialLine: string; completeLines: string[] } {
+): IncomingLogTextSplit {
   const combined = previousPartial + newText;
   const chunks = combined.split("\n");
 

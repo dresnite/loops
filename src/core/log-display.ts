@@ -49,12 +49,14 @@ function renderInlineMarkdown(line: string): string {
     .replace(/`([^`]+)`/g, `${ANSI.cyan}$1${ANSI.reset}`);
 }
 
+export type LogLineOutput = (line: string) => void;
+
 export interface LogLinePrinter {
   print(line: string): void;
 }
 
 export function createLogLinePrinter(
-  output: (line: string) => void = (line) => console.log(line),
+  output: LogLineOutput = (line) => console.log(line),
 ): LogLinePrinter {
   let inAssistantBlock = false;
 

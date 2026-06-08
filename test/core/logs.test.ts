@@ -10,6 +10,7 @@ import {
   followRunLog,
   isAssistantHeaderLine,
   isLogHeaderLine,
+  logHeaderLabel,
   readRunLog,
   runLogPath,
   splitIncomingLogText,
@@ -34,14 +35,29 @@ describe("log format", () => {
 
     expect(header).toBe("2026-06-08T15:14:48.516Z [assistant]");
     expect(isLogHeaderLine(header)).toBe(true);
+    expect(logHeaderLabel(header)).toBe(ASSISTANT_LOG_LABEL);
     expect(isAssistantHeaderLine(header)).toBe(true);
     expect(isAssistantHeaderLine("plain text")).toBe(false);
+    expect(logHeaderLabel("plain text")).toBeNull();
     expect(isAssistantHeaderLine(formatLogHeader("[task 1] finished"))).toBe(
       false,
     );
+    expect(
+      isAssistantHeaderLine(formatLogHeader("[backup assistant]")),
+    ).toBe(false);
   });
 
   it("splits complete and partial lines from appended log text", () => {
+    expect(splitIncomingLogText("", "")).toEqual({
+      partialLine: "",
+      completeLines: [],
+    });
+
+    expect(splitIncomingLogText("", "\n")).toEqual({
+      partialLine: "",
+      completeLines: [""],
+    });
+
     expect(splitIncomingLogText("", "line one\nline two\n")).toEqual({
       partialLine: "",
       completeLines: ["line one", "line two"],
