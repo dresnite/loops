@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { openSync } from "node:fs";
 import { access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "pathe";
@@ -7,9 +8,11 @@ import { DEFAULT_PROVIDER } from "../constants.js";
 import { assertSupportedProvider } from "../providers/index.js";
 import type { LoopRun, StartRunInput } from "../types.js";
 import { createEmptyUsage } from "./limits.js";
+import { reconcileRunState, shouldReconcileRun } from "./process.js";
 import { resolvePrompt } from "./prompt.js";
 import { resolveRunTarget } from "./resolve.js";
 import { getLoop } from "./registry.js";
+import { runLogPath } from "./logs.js";
 import {
   ensureStorageDirs,
   getStoragePaths,
@@ -31,11 +34,29 @@ function createRunId(): string {
   return randomBytes(4).toString("hex");
 }
 
+async function reconcileAndPersistRun(
+  run: LoopRun,
+  paths: StoragePaths,
+): Promise<LoopRun> {
+  if (!shouldReconcileRun(run)) {
+    return run;
+  }
+
+  const reconciled = reconcileRunState(run);
+  await saveRun(reconciled, paths);
+  return reconciled;
+}
+
 export async function getRun(
   runId: string,
   paths = getStoragePaths(),
 ): Promise<LoopRun | null> {
-  return readJson<LoopRun>(runPath(paths, runId));
+  const run = await readJson<LoopRun>(runPath(paths, runId));
+  if (!run) {
+    return null;
+  }
+
+  return reconcileAndPersistRun(run, paths);
 }
 
 export async function saveRun(
@@ -58,9 +79,13 @@ export async function listRuns(
     }),
   );
 
-  return runs
-    .filter((run): run is LoopRun => run !== null)
-    .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  const resolved = await Promise.all(
+    runs
+      .filter((run): run is LoopRun => run !== null)
+      .map((run) => reconcileAndPersistRun(run, paths)),
+  );
+
+  return resolved.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 }
 
 export async function listActiveRunsForLoop(
@@ -88,7 +113,7 @@ async function assertRepoExists(repoPath: string): Promise<void> {
 function getWorkerScriptPath(): string {
   const thisFile = fileURLToPath(import.meta.url);
   if (thisFile.includes("/dist/")) {
-    return fileURLToPath(new URL("../../worker.mjs", import.meta.url));
+    return fileURLToPath(new URL("./worker.mjs", import.meta.url));
   }
   return fileURLToPath(new URL("./worker.ts", import.meta.url));
 }
@@ -96,17 +121,29 @@ function getWorkerScriptPath(): string {
 export type WorkerSpawner = (
   scriptPath: string,
   args: string[],
-) => { pid: number };
+) => Promise<{ pid: number }> | { pid: number };
 
-function spawnWorkerProcess(scriptPath: string, args: string[]): { pid: number } {
+async function spawnWorkerProcess(
+  scriptPath: string,
+  args: string[],
+  paths = getStoragePaths(),
+): Promise<{ pid: number }> {
   const execArgs =
     scriptPath.endsWith(".ts")
       ? ["--import", "tsx", scriptPath, ...args]
       : [scriptPath, ...args];
 
+  const runId = args[0];
+  if (!runId) {
+    throw new Error("Worker run id is required");
+  }
+
+  await ensureStorageDirs(paths);
+  const stderrFd = openSync(runLogPath(paths, runId), "a");
+
   const child = spawn(process.execPath, execArgs, {
     detached: true,
-    stdio: "ignore",
+    stdio: ["ignore", "ignore", stderrFd],
     env: process.env,
   });
 
@@ -175,8 +212,8 @@ export async function startRun(
 
   if (process.env.LOOPS_TEST_MODE !== "1") {
     const workerScript = getWorkerScriptPath();
-    const { pid } = workerSpawner(workerScript, [run.id]);
-    run.pid = pid;
+    const spawnResult = await workerSpawner(workerScript, [run.id]);
+    run.pid = spawnResult.pid;
   }
 
   run.status = "running";
@@ -190,7 +227,26 @@ export async function stopRun(
   paths = getStoragePaths(),
 ): Promise<LoopRun> {
   const runs = await listRuns(paths);
-  const run = resolveRunTarget(target, runs, { activeOnly: true });
+
+  let run: LoopRun;
+  try {
+    run = resolveRunTarget(target, runs, { activeOnly: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.startsWith('No run found for "')) {
+      throw error;
+    }
+
+    const latest = resolveRunTarget(target, runs, { activeOnly: false });
+    if (latest.status === "error" && latest.error === "worker process exited unexpectedly") {
+      latest.status = "stopped";
+      latest.error = undefined;
+      await saveRun(latest, paths);
+      return latest;
+    }
+
+    throw error;
+  }
 
   if (run.status !== "running" && run.status !== "starting") {
     throw new Error(`Run "${run.id}" is not active (status: ${run.status})`);

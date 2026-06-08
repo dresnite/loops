@@ -18,6 +18,7 @@ import {
   setProviderForTesting,
 } from "../../src/providers/index.js";
 import { executeWorker } from "../../src/core/worker.js";
+import { setProcessAliveCheckerForTesting } from "../../src/core/process.js";
 import { createTempHome } from "../helpers/temp-home.js";
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -25,6 +26,7 @@ const cleanups: Array<() => Promise<void>> = [];
 beforeEach(() => {
   vi.unstubAllEnvs();
   delete process.env.LOOPS_TEST_MODE;
+  setProcessAliveCheckerForTesting(() => true);
 
   resetMockProviderIds();
   setProviderForTesting(new MockProvider({ runs: [{}, {}] }));
@@ -34,6 +36,7 @@ beforeEach(() => {
 afterEach(async () => {
   resetWorkerSpawnerForTesting();
   setProviderForTesting(null);
+  setProcessAliveCheckerForTesting(null);
   vi.unstubAllEnvs();
   await Promise.all(cleanups.map((cleanup) => cleanup()));
   cleanups.length = 0;

@@ -36,16 +36,19 @@ export default defineCommand({
       return;
     }
 
-    const active = runs.filter(
-      (run) => run.status === "running" || run.status === "starting",
+    const visible = runs.filter(
+      (run) =>
+        run.status === "running" ||
+        run.status === "starting" ||
+        run.status === "error",
     );
 
-    if (active.length === 0) {
+    if (visible.length === 0) {
       console.log("No running loops.");
       return;
     }
 
-    for (const run of active) {
+    for (const run of visible) {
       console.log(formatRunLine(run));
     }
   },

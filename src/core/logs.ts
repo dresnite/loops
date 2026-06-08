@@ -4,8 +4,12 @@ import { ensureStorageDirs, getStoragePaths, type StoragePaths } from "./storage
 
 const FOLLOW_POLL_MS = 500;
 
-function logPath(paths: StoragePaths, runId: string): string {
+export function runLogPath(paths: StoragePaths, runId: string): string {
   return join(paths.logs, `${runId}.log`);
+}
+
+function logPath(paths: StoragePaths, runId: string): string {
+  return runLogPath(paths, runId);
 }
 
 export function truncateLogText(text: string, max = 200): string {
@@ -15,6 +19,10 @@ export function truncateLogText(text: string, max = 200): string {
   }
 
   return `${normalized.slice(0, max)}...`;
+}
+
+export function formatAssistantLogText(text: string, max = 4000): string {
+  return truncateLogText(text, max);
 }
 
 export async function appendRunLog(

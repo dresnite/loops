@@ -17,6 +17,9 @@ export interface MockRunBehavior {
   result?: string;
   usage?: StreamEvent["usage"];
   delayMs?: number;
+  rapidUsageCalls?: number;
+  assistantDeltas?: string[];
+  toolCalls?: string[];
 }
 
 export interface MockProviderOptions {
@@ -39,6 +42,14 @@ class MockAgentRun implements AgentRun {
 
     if (this.behavior.usage) {
       yield { type: "turn-ended", usage: this.behavior.usage };
+    }
+
+    for (const delta of this.behavior.assistantDeltas ?? []) {
+      yield { type: "assistant", text: delta };
+    }
+
+    for (const toolName of this.behavior.toolCalls ?? []) {
+      yield { type: "tool_call", toolName };
     }
   }
 
@@ -79,6 +90,17 @@ class MockAgentSession implements AgentSession {
 
     if (behavior.usage) {
       options?.onUsage?.(behavior.usage);
+    }
+
+    if (behavior.rapidUsageCalls) {
+      for (let index = 0; index < behavior.rapidUsageCalls; index += 1) {
+        options?.onUsage?.({
+          inputTokens: 0,
+          outputTokens: 1,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+        });
+      }
     }
 
     return new MockAgentRun(`mock-run-${nextRunId++}`, behavior);

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   appendRunLog,
+  formatAssistantLogText,
   readRunLog,
   truncateLogText,
 } from "../../src/core/logs.js";
@@ -31,5 +32,10 @@ describe("logs", () => {
 
   it("truncates long log text", () => {
     expect(truncateLogText("a".repeat(250), 200)).toMatch(/\.\.\.$/);
+  });
+
+  it("allows longer assistant log text", () => {
+    expect(formatAssistantLogText("a".repeat(250), 4000)).toBe("a".repeat(250));
+    expect(formatAssistantLogText("a".repeat(4500), 4000)).toMatch(/\.\.\.$/);
   });
 });

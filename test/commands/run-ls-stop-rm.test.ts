@@ -20,11 +20,15 @@ import {
   setProviderForTesting,
 } from "../../src/providers/index.js";
 import { executeWorker } from "../../src/core/worker.js";
+import { setProcessAliveCheckerForTesting } from "../../src/core/process.js";
+import { saveRun } from "../../src/core/runner.js";
+import { createEmptyUsage } from "../../src/core/limits.js";
 import { createTempHome } from "../helpers/temp-home.js";
 
 const cleanups: Array<() => Promise<void>> = [];
 
 beforeEach(() => {
+  setProcessAliveCheckerForTesting(() => true);
   resetMockProviderIds();
   setProviderForTesting(new MockProvider({ runs: [{}] }));
   setWorkerSpawnerForTesting(() => ({ pid: 9001 }));
@@ -34,6 +38,7 @@ beforeEach(() => {
 afterEach(async () => {
   resetWorkerSpawnerForTesting();
   setProviderForTesting(null);
+  setProcessAliveCheckerForTesting(null);
   vi.unstubAllEnvs();
   delete process.env.LOOPS_TEST_MODE;
   await Promise.all(cleanups.map((cleanup) => cleanup()));
@@ -179,6 +184,52 @@ describe("loops run/ls/stop/rm", () => {
 
     expect(logs.some((line) => line.includes("error"))).toBe(true);
     expect(logs.some((line) => line.includes("refactor"))).toBe(true);
+  });
+
+  it("lists zombie runs as error and stops them by loop name", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    vi.stubEnv("HOME", homeDir);
+    const paths = getStoragePaths(homeDir);
+    setProcessAliveCheckerForTesting(() => false);
+
+    await saveRun(
+      {
+        id: "zombie01",
+        loopName: "refactor",
+        provider: "cursor",
+        repoPath: "/repo",
+        prompt: "prompt",
+        status: "running",
+        continuous: true,
+        pid: 999_999,
+        limits: { maxTasks: 25 },
+        tasksCompleted: 0,
+        usage: createEmptyUsage(),
+        estimatedCostUsd: 0,
+        startedAt: "2026-06-08T15:11:08.321Z",
+        updatedAt: "2026-06-08T15:11:13.828Z",
+      },
+      paths,
+    );
+
+    const logs: string[] = [];
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+
+    try {
+      await runCommand(lsCommand, { rawArgs: [] });
+      expect(logs.some((line) => line.includes("refactor → error"))).toBe(true);
+
+      await runCommand(stopCommand, { rawArgs: ["refactor"] });
+    } finally {
+      console.log = originalLog;
+    }
+
+    const stopped = await getRun("zombie01", paths);
+    expect(stopped?.status).toBe("stopped");
   });
 
   it("finishes one-shot runs via worker", async () => {

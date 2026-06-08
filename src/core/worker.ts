@@ -1,32 +1,65 @@
+import { join } from "pathe";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { getProvider } from "../providers/index.js";
-import type { StreamEvent } from "../providers/types.js";
 import type { LoopRun, TokenUsage } from "../types.js";
 import {
   estimateCostUsd,
   mergeUsage,
   shouldStopForLimits,
 } from "./limits.js";
-import { appendRunLog, truncateLogText } from "./logs.js";
+import { appendRunLog } from "./logs.js";
 import { getRun, saveRun } from "./runner.js";
-import { getStoragePaths } from "./storage.js";
+import { StreamEventLogger } from "./stream-log.js";
+import { getStoragePaths, readJson } from "./storage.js";
 
 const STOP_POLL_MS = 500;
+const USAGE_SAVE_DEBOUNCE_MS = 300;
+
+function createDebouncedRunSaver(runId: string): {
+  schedule: (run: LoopRun) => void;
+  flush: () => Promise<void>;
+} {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let latestRun: LoopRun | undefined;
+  let pendingSave: Promise<void> | undefined;
+
+  const flush = async (): Promise<void> => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+
+    if (!latestRun) {
+      await pendingSave;
+      return;
+    }
+
+    const snapshot = latestRun;
+    latestRun = undefined;
+    pendingSave = saveRun(snapshot).catch(async (error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      await log(runId, `[error] failed to persist run state: ${message}`);
+    });
+    await pendingSave;
+    pendingSave = undefined;
+  };
+
+  return {
+    schedule(run: LoopRun) {
+      latestRun = run;
+      if (timer) {
+        clearTimeout(timer);
+      }
+      timer = setTimeout(() => {
+        void flush();
+      }, USAGE_SAVE_DEBOUNCE_MS);
+    },
+    flush,
+  };
+}
 
 async function log(runId: string, message: string): Promise<void> {
   await appendRunLog(runId, message);
-}
-
-function formatStreamEvent(event: StreamEvent): string | null {
-  if (event.type === "tool_call" && event.toolName) {
-    return `[tool] ${event.toolName}`;
-  }
-
-  if (event.type === "assistant" && event.text) {
-    return `[assistant] ${truncateLogText(event.text)}`;
-  }
-
-  return null;
 }
 
 async function isStopRequested(run: LoopRun): Promise<boolean> {
@@ -48,6 +81,8 @@ async function consumeRun(
   run.agentId = session.agentId;
   await saveRun(run);
 
+  const usageSaver = createDebouncedRunSaver(run.id);
+
   try {
     await log(run.id, `[task ${taskNumber}] sending prompt`);
 
@@ -55,24 +90,26 @@ async function consumeRun(
       onUsage: (usage) => {
         run.usage = mergeUsage(run.usage, usage);
         run.estimatedCostUsd = estimateCostUsd(run.usage);
-        void saveRun(run);
+        usageSaver.schedule(run);
       },
     });
     run.currentRunId = agentRun.id;
     await saveRun(run);
 
+    const streamLogger = new StreamEventLogger((message) => log(run.id, message));
+
     for await (const event of agentRun.stream()) {
       if (await isStopRequested(run)) {
         await agentRun.cancel();
+        await streamLogger.flush();
         await log(run.id, "[stop] requested");
         return { status: "cancelled", usage: run.usage };
       }
 
-      const formatted = formatStreamEvent(event);
-      if (formatted) {
-        await log(run.id, formatted);
-      }
+      await streamLogger.handle(event);
     }
+
+    await streamLogger.flush();
 
     const result = await agentRun.wait();
     if (result.status === "error") {
@@ -91,6 +128,7 @@ async function consumeRun(
     return { status: "finished", usage: run.usage };
   } finally {
     run.currentRunId = undefined;
+    await usageSaver.flush();
     await saveRun(run);
     await session.dispose();
   }
@@ -106,6 +144,7 @@ export async function executeWorker(runId: string): Promise<number> {
   }
 
   run.status = "running";
+  run.pid = process.pid;
   await saveRun(run, paths);
   await log(
     run.id,
@@ -192,10 +231,50 @@ function resolveArgPath(arg: string): string {
   }
 }
 
-const isMainModule =
-  process.argv[1] !== undefined &&
-  resolveArgPath(process.argv[1]) === fileURLToPath(import.meta.url);
+function isWorkerCliInvocation(): boolean {
+  if (process.argv[1] === undefined) {
+    return false;
+  }
+
+  const invoked = resolveArgPath(process.argv[1]);
+  const thisFile = fileURLToPath(import.meta.url);
+
+  return (
+    invoked === thisFile ||
+    invoked.endsWith("/worker.mjs") ||
+    invoked.endsWith("\\worker.mjs")
+  );
+}
+
+const isMainModule = isWorkerCliInvocation();
+
+async function markRunFailed(runId: string, message: string): Promise<void> {
+  const paths = getStoragePaths();
+  const run = await readJson<LoopRun>(join(paths.runs, `${runId}.json`));
+  if (!run || (run.status !== "running" && run.status !== "starting")) {
+    return;
+  }
+
+  run.status = "error";
+  run.error = message;
+  run.pid = undefined;
+  await saveRun(run, paths);
+}
 
 if (isMainModule) {
-  void main();
+  main().catch(async (error) => {
+    const runId = process.argv[2];
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(message);
+
+    if (runId) {
+      try {
+        await markRunFailed(runId, message);
+      } catch {
+        // Best effort only.
+      }
+    }
+
+    process.exit(1);
+  });
 }

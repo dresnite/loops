@@ -1,7 +1,10 @@
+import { randomBytes } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "pathe";
 import { LOOPS_DIR_NAME } from "../constants.js";
+
+const writeQueues = new Map<string, Promise<void>>();
 
 export interface StoragePaths {
   root: string;
@@ -26,13 +29,34 @@ export async function ensureStorageDirs(paths = getStoragePaths()): Promise<void
   await mkdir(paths.logs, { recursive: true });
 }
 
+async function writeJsonAtomicOnce<T>(filePath: string, data: T): Promise<void> {
+  const tempPath = `${filePath}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
+  await writeFile(tempPath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
+  await rename(tempPath, filePath);
+}
+
 export async function writeJsonAtomic<T>(
   filePath: string,
   data: T,
 ): Promise<void> {
-  const tempPath = `${filePath}.${process.pid}.tmp`;
-  await writeFile(tempPath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
-  await rename(tempPath, filePath);
+  const previous = writeQueues.get(filePath) ?? Promise.resolve();
+  const next = previous
+    .catch(() => undefined)
+    .then(() => writeJsonAtomicOnce(filePath, data));
+
+  writeQueues.set(filePath, next);
+
+  try {
+    await next;
+  } finally {
+    if (writeQueues.get(filePath) === next) {
+      writeQueues.delete(filePath);
+    }
+  }
+}
+
+export function resetWriteQueuesForTesting(): void {
+  writeQueues.clear();
 }
 
 export async function readJson<T>(filePath: string): Promise<T | null> {
