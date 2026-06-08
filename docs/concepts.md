@@ -96,7 +96,7 @@ Each run stores the resolved prompt text on its run record (`prompt`, and option
 - View with `loops prompt show <name|run-id>`
 - Update with `loops prompt set <name|run-id> --prompt "..."` or `--preset ./file.md`
 
-For active continuous runs, prompt edits apply on the **next** agent task. The worker reloads the prompt from disk before each task.
+For active continuous runs, prompt edits apply on the **next** agent task. The worker reloads the prompt from disk before each task and before every state save, so mid-task `loops prompt set` is not overwritten (the new prompt still takes effect on the next task).
 
 ## Limits
 

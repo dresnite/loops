@@ -4,11 +4,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { readRunLog } from "../../src/core/logs.js";
 import {
   formatRunPromptDisplay,
+  persistWorkerRun,
   setRunPrompt,
   syncRunPromptFromDisk,
 } from "../../src/core/run-prompt.js";
 import { addLoop } from "../../src/core/registry.js";
-import { getRun, saveRun, startRun } from "../../src/core/runner.js";
+import { getRun, readRunRaw, saveRun, startRun } from "../../src/core/runner.js";
 import { getStoragePaths } from "../../src/core/storage.js";
 import { DEFAULT_MODEL } from "../../src/constants.js";
 import { setModelListForTesting } from "../../src/core/models.js";
@@ -131,5 +132,24 @@ describe("run-prompt", () => {
     expect(run.prompt).toBe("from disk");
     expect(run.presetPath).toBe("./from-disk.md");
     expect(run.tasksCompleted).toBe(2);
+  });
+
+  it("persistWorkerRun preserves disk prompt when memory is stale", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    vi.stubEnv("HOME", homeDir);
+    const paths = getStoragePaths(homeDir);
+
+    const run = makeTestRun({ prompt: "on disk" });
+    await saveRun(run, paths);
+
+    run.prompt = "stale";
+    run.tasksCompleted = 3;
+
+    await persistWorkerRun(run, paths);
+
+    const persisted = await readRunRaw(run.id, paths);
+    expect(persisted?.prompt).toBe("on disk");
+    expect(persisted?.tasksCompleted).toBe(3);
   });
 });

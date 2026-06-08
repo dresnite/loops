@@ -84,3 +84,11 @@ export async function syncRunPromptFromDisk(
   run.prompt = latest.prompt;
   run.presetPath = latest.presetPath;
 }
+
+export async function persistWorkerRun(
+  run: LoopRun,
+  paths = getStoragePaths(),
+): Promise<void> {
+  await syncRunPromptFromDisk(run, paths);
+  await saveRun(run, paths);
+}

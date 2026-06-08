@@ -9,7 +9,7 @@ import {
 import { appendRunLog, appendRunLogBlock } from "./logs.js";
 import { isWorkerCliInvocation } from "./paths.js";
 import { isActiveRun, isRunStopped } from "./run-state.js";
-import { syncRunPromptFromDisk } from "./run-prompt.js";
+import { persistWorkerRun, syncRunPromptFromDisk } from "./run-prompt.js";
 import { getRun, readRunRaw, saveRun } from "./runner.js";
 import { StreamEventLogger } from "./stream-log.js";
 import { getStoragePaths } from "./storage.js";
@@ -38,7 +38,7 @@ function createDebouncedRunSaver(runId: string): {
 
     const snapshot = latestRun;
     latestRun = undefined;
-    pendingSave = saveRun(snapshot).catch(async (error) => {
+    pendingSave = persistWorkerRun(snapshot).catch(async (error) => {
       await log(runId, `[error] failed to persist run state: ${getErrorMessage(error)}`);
     });
     await pendingSave;
@@ -83,7 +83,7 @@ async function consumeRun(
     model: run.model,
   });
   run.agentId = session.agentId;
-  await saveRun(run);
+  await persistWorkerRun(run);
 
   const usageSaver = createDebouncedRunSaver(run.id);
 
@@ -98,7 +98,7 @@ async function consumeRun(
       },
     });
     run.currentRunId = agentRun.id;
-    await saveRun(run);
+    await persistWorkerRun(run);
 
     const streamLogger = new StreamEventLogger({
       writeLine: (message) => log(run.id, message),
@@ -121,7 +121,7 @@ async function consumeRun(
     const result = await agentRun.wait();
     if (result.status === "error") {
       run.error = result.result ?? "run failed";
-      await saveRun(run);
+      await persistWorkerRun(run);
       await log(run.id, `[task ${taskNumber}] error: ${run.error}`);
       return { status: "error", usage: run.usage };
     }
@@ -136,7 +136,7 @@ async function consumeRun(
   } finally {
     run.currentRunId = undefined;
     await usageSaver.flush();
-    await saveRun(run);
+    await persistWorkerRun(run);
     await session.dispose();
   }
 }
@@ -152,7 +152,7 @@ export async function executeWorker(runId: string): Promise<number> {
 
   run.status = "running";
   run.pid = process.pid;
-  await saveRun(run, paths);
+  await persistWorkerRun(run, paths);
   await log(
     run.id,
     `[start] loop=${run.loopName} repo=${run.repoPath}`,
@@ -162,7 +162,7 @@ export async function executeWorker(runId: string): Promise<number> {
     while (true) {
       if (await isStopRequested(run)) {
         run.status = "stopped";
-        await saveRun(run, paths);
+        await persistWorkerRun(run, paths);
         await log(run.id, "[stop] requested");
         return 0;
       }
@@ -173,23 +173,23 @@ export async function executeWorker(runId: string): Promise<number> {
       const outcome = await consumeRun(run, run.prompt, taskNumber);
       run.tasksCompleted += 1;
       run.estimatedCostUsd = estimateCostUsd(run.usage, run.model);
-      await saveRun(run, paths);
+      await persistWorkerRun(run, paths);
 
       if (outcome.status === "error") {
         run.status = "error";
-        await saveRun(run, paths);
+        await persistWorkerRun(run, paths);
         return 2;
       }
 
       if (outcome.status === "cancelled" || (await isStopRequested(run))) {
         run.status = "stopped";
-        await saveRun(run, paths);
+        await persistWorkerRun(run, paths);
         return 0;
       }
 
       if (!run.continuous) {
         run.status = "finished";
-        await saveRun(run, paths);
+        await persistWorkerRun(run, paths);
         return 0;
       }
 
@@ -200,7 +200,7 @@ export async function executeWorker(runId: string): Promise<number> {
             ? "[limit] tasks reached"
             : "[limit] budget reached";
         run.status = "finished";
-        await saveRun(run, paths);
+        await persistWorkerRun(run, paths);
         await log(run.id, limitMessage);
         return 0;
       }
@@ -210,7 +210,7 @@ export async function executeWorker(runId: string): Promise<number> {
   } catch (error) {
     run.status = "error";
     run.error = getErrorMessage(error);
-    await saveRun(run, paths);
+    await persistWorkerRun(run, paths);
     await log(run.id, `[error] ${run.error}`);
 
     if (run.error.startsWith("startup failed")) {

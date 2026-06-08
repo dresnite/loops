@@ -91,4 +91,48 @@ describe("worker prompt reload", () => {
     expect(finished?.tasksCompleted).toBe(2);
     expect(finished?.prompt).toBe("second prompt");
   });
+
+  it("preserves prompt set during an in-flight task", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    vi.stubEnv("HOME", homeDir);
+    const paths = getStoragePaths(homeDir);
+
+    const repoPath = join(homeDir, "repo");
+    await mkdir(repoPath, { recursive: true });
+    await writeFile(join(repoPath, "README.md"), "# demo", "utf8");
+
+    await addLoop({ name: "refactor", defaultPrompt: "default" }, paths);
+    const run = await startRun(
+      {
+        loopName: "refactor",
+        repoPath,
+        prompt: "first prompt",
+        maxTasks: 2,
+      },
+      paths,
+    );
+
+    mockProvider = new MockProvider({
+      runs: [{ delayMs: 200, rapidUsageCalls: 5 }, {}],
+    });
+    setProviderForTesting(mockProvider);
+
+    const workerPromise = executeWorker(run.id);
+
+    await waitForSentPromptCount(1);
+    expect(mockProvider.sentPrompts[0]).toBe("first prompt");
+
+    await setRunPrompt(run.id, { prompt: "second prompt" }, paths);
+
+    const exitCode = await workerPromise;
+    expect(exitCode).toBe(0);
+    expect(mockProvider.sentPrompts).toEqual([
+      "first prompt",
+      "second prompt",
+    ]);
+
+    const finished = await getRun(run.id, paths);
+    expect(finished?.prompt).toBe("second prompt");
+  });
 });
