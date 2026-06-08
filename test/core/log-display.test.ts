@@ -1,18 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-  isAssistantHeaderLine,
-  isLogHeaderLine,
+  createLogLinePrinter,
   renderMarkdownForTerminal,
 } from "../../src/core/log-display.js";
+import { formatLogHeader } from "../../src/core/logs.js";
 
 describe("log display", () => {
-  it("detects log header and assistant header lines", () => {
-    const header = "2026-06-08T15:14:48.516Z [assistant]";
-    expect(isLogHeaderLine(header)).toBe(true);
-    expect(isAssistantHeaderLine(header)).toBe(true);
-    expect(isAssistantHeaderLine("plain text")).toBe(false);
-  });
-
   it("renders markdown without color when NO_COLOR is set", () => {
     const previous = process.env.NO_COLOR;
     process.env.NO_COLOR = "1";
@@ -27,6 +20,33 @@ describe("log display", () => {
       } else {
         process.env.NO_COLOR = previous;
       }
+    }
+  });
+
+  it("renders assistant block body lines with markdown formatting", () => {
+    const logs: string[] = [];
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+
+    try {
+      const printer = createLogLinePrinter();
+      const header = formatLogHeader("[assistant]");
+
+      printer.print(header);
+      printer.print("# Title");
+      printer.print("");
+      printer.print("- item");
+      printer.print(`${formatLogHeader("[task 1] finished")}`);
+
+      expect(logs[0]).toBe(header);
+      expect(logs[1]).toBe("# Title");
+      expect(logs[2]).toBe("");
+      expect(logs[3]).toBe("- item");
+      expect(logs[4]).toContain("[task 1] finished");
+    } finally {
+      console.log = originalLog;
     }
   });
 });

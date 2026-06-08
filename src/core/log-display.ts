@@ -1,20 +1,10 @@
+import { isAssistantHeaderLine, isLogHeaderLine } from "./logs.js";
+
 const ANSI = {
   bold: "\x1b[1m",
-  dim: "\x1b[2m",
   cyan: "\x1b[36m",
   reset: "\x1b[0m",
 };
-
-const LOG_HEADER_PATTERN =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z /;
-
-export function isLogHeaderLine(line: string): boolean {
-  return LOG_HEADER_PATTERN.test(line);
-}
-
-export function isAssistantHeaderLine(line: string): boolean {
-  return LOG_HEADER_PATTERN.test(line) && /\s\[assistant\]\s*$/.test(line);
-}
 
 function colorEnabled(): boolean {
   if (process.env.NO_COLOR !== undefined) {

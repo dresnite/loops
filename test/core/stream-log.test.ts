@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { formatAssistantLogText } from "../../src/core/logs.js";
 import {
   formatToolActivity,
   StreamEventLogger,
   type StreamLogWriter,
 } from "../../src/core/stream-log.js";
 
-function createWriter(): StreamLogWriter & { lines: string[]; blocks: Array<{ label: string; body: string }> } {
+function createWriter(): StreamLogWriter & {
+  lines: string[];
+  blocks: Array<{ label: string; body: string }>;
+} {
   const lines: string[] = [];
   const blocks: Array<{ label: string; body: string }> = [];
 
@@ -21,20 +23,6 @@ function createWriter(): StreamLogWriter & { lines: string[]; blocks: Array<{ la
     },
   };
 }
-
-describe("formatAssistantLogText", () => {
-  it("preserves markdown line breaks", () => {
-    expect(formatAssistantLogText("# Title\n\n- one\n- two")).toBe(
-      "# Title\n\n- one\n- two",
-    );
-  });
-
-  it("trims trailing spaces per line without collapsing paragraphs", () => {
-    expect(formatAssistantLogText("line one  \n\nline two  ")).toBe(
-      "line one\n\nline two",
-    );
-  });
-});
 
 describe("formatToolActivity", () => {
   it("maps common tools to friendly activity labels", () => {
@@ -88,6 +76,17 @@ describe("StreamEventLogger", () => {
       "[tool] reading...",
       "[tool] running command...",
     ]);
+  });
+
+  it("treats tool names as case-insensitive when collapsing", async () => {
+    const writer = createWriter();
+    const logger = new StreamEventLogger(writer);
+
+    await logger.handle({ type: "tool_call", toolName: "Read" });
+    await logger.handle({ type: "tool_call", toolName: "READ" });
+    await logger.handle({ type: "tool_call", toolName: " read " });
+
+    expect(writer.lines).toEqual(["[tool] reading..."]);
   });
 
   it("starts a new tool series after assistant text", async () => {

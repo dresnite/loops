@@ -1,9 +1,29 @@
 import { appendFile, readFile, stat } from "node:fs/promises";
 import { join } from "pathe";
-import { isErrnoCode } from "./errors.js";
+import { getErrorMessage, isErrnoCode } from "./errors.js";
 import { ensureStorageDirs, getStoragePaths, type StoragePaths } from "./storage.js";
 
-const FOLLOW_POLL_MS = 500;
+export const ASSISTANT_LOG_LABEL = "[assistant]" as const;
+
+export const LOG_HEADER_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z /;
+
+export const FOLLOW_POLL_MS = 500;
+
+export function formatLogHeader(label: string, date = new Date()): string {
+  return `${date.toISOString()} ${label}`;
+}
+
+export function isLogHeaderLine(line: string): boolean {
+  return LOG_HEADER_PATTERN.test(line);
+}
+
+export function isAssistantHeaderLine(line: string): boolean {
+  return (
+    LOG_HEADER_PATTERN.test(line) &&
+    line.trimEnd().endsWith(ASSISTANT_LOG_LABEL)
+  );
+}
 
 export function runLogPath(paths: StoragePaths, runId: string): string {
   return join(paths.logs, `${runId}.log`);
@@ -46,7 +66,7 @@ export async function appendRunLog(
   paths = getStoragePaths(),
 ): Promise<void> {
   await ensureStorageDirs(paths);
-  const line = `${new Date().toISOString()} ${message}\n`;
+  const line = `${formatLogHeader(message)}\n`;
   await appendFile(runLogPath(paths, runId), line, "utf8");
 }
 
@@ -57,7 +77,7 @@ export async function appendRunLogBlock(
   paths = getStoragePaths(),
 ): Promise<void> {
   await ensureStorageDirs(paths);
-  const header = `${new Date().toISOString()} ${label}\n`;
+  const header = `${formatLogHeader(label)}\n`;
   const content = body.length > 0 ? `${body}\n` : "";
   await appendFile(runLogPath(paths, runId), `${header}${content}`, "utf8");
 }
@@ -135,7 +155,9 @@ export async function followRunLog(
         }
       } catch (error) {
         if (!isErrnoCode(error, "ENOENT")) {
-          throw error;
+          console.error(
+            `failed to follow log for run "${runId}": ${getErrorMessage(error)}`,
+          );
         }
       } finally {
         reading = false;

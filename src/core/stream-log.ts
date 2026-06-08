@@ -16,8 +16,12 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
   search_replace: "editing...",
 };
 
+export function normalizeToolName(toolName: string): string {
+  return toolName.trim().toLowerCase();
+}
+
 export function formatToolActivity(toolName: string): string {
-  const normalized = toolName.trim().toLowerCase();
+  const normalized = normalizeToolName(toolName);
   return TOOL_ACTIVITY_LABELS[normalized] ?? `using ${toolName}...`;
 }
 
@@ -36,11 +40,12 @@ export class StreamEventLogger {
     await this.flushAssistant();
 
     if (event.type === "tool_call" && event.toolName) {
-      if (this.activeToolName === event.toolName) {
+      const normalizedToolName = normalizeToolName(event.toolName);
+      if (this.activeToolName === normalizedToolName) {
         return;
       }
 
-      this.activeToolName = event.toolName;
+      this.activeToolName = normalizedToolName;
       await this.writer.writeLine(
         `[tool] ${formatToolActivity(event.toolName)}`,
       );
