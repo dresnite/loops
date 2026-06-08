@@ -1,63 +1,129 @@
 import { describe, expect, it } from "vitest";
 import { formatAssistantLogText } from "../../src/core/logs.js";
-import { StreamEventLogger } from "../../src/core/stream-log.js";
+import {
+  formatToolActivity,
+  StreamEventLogger,
+  type StreamLogWriter,
+} from "../../src/core/stream-log.js";
+
+function createWriter(): StreamLogWriter & { lines: string[]; blocks: Array<{ label: string; body: string }> } {
+  const lines: string[] = [];
+  const blocks: Array<{ label: string; body: string }> = [];
+
+  return {
+    lines,
+    blocks,
+    async writeLine(message: string) {
+      lines.push(message);
+    },
+    async writeBlock(label: string, body: string) {
+      blocks.push({ label, body });
+    },
+  };
+}
 
 describe("formatAssistantLogText", () => {
-  it("normalizes whitespace in assistant messages", () => {
-    expect(formatAssistantLogText("I'll   review\n\nthe  code.")).toBe(
-      "I'll review the code.",
+  it("preserves markdown line breaks", () => {
+    expect(formatAssistantLogText("# Title\n\n- one\n- two")).toBe(
+      "# Title\n\n- one\n- two",
+    );
+  });
+
+  it("trims trailing spaces per line without collapsing paragraphs", () => {
+    expect(formatAssistantLogText("line one  \n\nline two  ")).toBe(
+      "line one\n\nline two",
     );
   });
 });
 
+describe("formatToolActivity", () => {
+  it("maps common tools to friendly activity labels", () => {
+    expect(formatToolActivity("read")).toBe("reading...");
+    expect(formatToolActivity("shell")).toBe("running command...");
+    expect(formatToolActivity("custom_tool")).toBe("using custom_tool...");
+  });
+});
+
 describe("StreamEventLogger", () => {
-  it("buffers assistant deltas and flushes as one line", async () => {
-    const writes: string[] = [];
-    const logger = new StreamEventLogger(async (message) => {
-      writes.push(message);
-    });
+  it("buffers assistant deltas and flushes as a block", async () => {
+    const writer = createWriter();
+    const logger = new StreamEventLogger(writer);
 
     await logger.handle({ type: "assistant", text: "I'll " });
     await logger.handle({ type: "assistant", text: "review " });
     await logger.handle({ type: "assistant", text: "the code." });
     await logger.flush();
 
-    expect(writes).toEqual(["[assistant] I'll review the code."]);
+    expect(writer.lines).toEqual([]);
+    expect(writer.blocks).toEqual([
+      { label: "[assistant]", body: "I'll review the code." },
+    ]);
   });
 
-  it("flushes assistant text before logging tool calls", async () => {
-    const writes: string[] = [];
-    const logger = new StreamEventLogger(async (message) => {
-      writes.push(message);
-    });
+  it("flushes assistant text before logging tool activity", async () => {
+    const writer = createWriter();
+    const logger = new StreamEventLogger(writer);
 
     await logger.handle({ type: "assistant", text: "Checking " });
     await logger.handle({ type: "assistant", text: "files." });
     await logger.handle({ type: "tool_call", toolName: "read" });
 
-    expect(writes).toEqual(["[assistant] Checking files.", "[tool] read"]);
+    expect(writer.blocks).toEqual([
+      { label: "[assistant]", body: "Checking files." },
+    ]);
+    expect(writer.lines).toEqual(["[tool] reading..."]);
+  });
+
+  it("collapses consecutive identical tool calls into one line", async () => {
+    const writer = createWriter();
+    const logger = new StreamEventLogger(writer);
+
+    await logger.handle({ type: "tool_call", toolName: "read" });
+    await logger.handle({ type: "tool_call", toolName: "read" });
+    await logger.handle({ type: "tool_call", toolName: "read" });
+    await logger.handle({ type: "tool_call", toolName: "shell" });
+    await logger.handle({ type: "tool_call", toolName: "shell" });
+
+    expect(writer.lines).toEqual([
+      "[tool] reading...",
+      "[tool] running command...",
+    ]);
+  });
+
+  it("starts a new tool series after assistant text", async () => {
+    const writer = createWriter();
+    const logger = new StreamEventLogger(writer);
+
+    await logger.handle({ type: "tool_call", toolName: "read" });
+    await logger.handle({ type: "assistant", text: "Done reviewing." });
+    await logger.handle({ type: "tool_call", toolName: "read" });
+
+    expect(writer.lines).toEqual([
+      "[tool] reading...",
+      "[tool] reading...",
+    ]);
+    expect(writer.blocks).toEqual([
+      { label: "[assistant]", body: "Done reviewing." },
+    ]);
   });
 
   it("does nothing when flushing an empty buffer", async () => {
-    const writes: string[] = [];
-    const logger = new StreamEventLogger(async (message) => {
-      writes.push(message);
-    });
+    const writer = createWriter();
+    const logger = new StreamEventLogger(writer);
 
     await logger.flush();
 
-    expect(writes).toEqual([]);
+    expect(writer.lines).toEqual([]);
+    expect(writer.blocks).toEqual([]);
   });
 
   it("ignores assistant events with empty text", async () => {
-    const writes: string[] = [];
-    const logger = new StreamEventLogger(async (message) => {
-      writes.push(message);
-    });
+    const writer = createWriter();
+    const logger = new StreamEventLogger(writer);
 
     await logger.handle({ type: "assistant", text: "   " });
     await logger.flush();
 
-    expect(writes).toEqual([]);
+    expect(writer.blocks).toEqual([]);
   });
 });

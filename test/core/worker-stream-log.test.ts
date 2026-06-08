@@ -26,7 +26,7 @@ beforeEach(() => {
       runs: [
         {
           assistantDeltas: ["I'll ", "review ", "the ", "code."],
-          toolCalls: ["read"],
+          toolCalls: ["read", "read", "read", "shell"],
         },
       ],
     }),
@@ -69,12 +69,14 @@ describe("worker stream logging", () => {
     await executeWorker(run.id);
 
     const lines = await readRunLog(run.id, { tail: 20 }, paths);
-    const assistantLines = lines.filter((line) => line.includes("[assistant]"));
+    const assistantHeader = lines.find((line) => line.includes("[assistant]"));
+    const assistantBody = lines.find((line) => line.includes("I'll review the code."));
     const toolLines = lines.filter((line) => line.includes("[tool]"));
 
-    expect(assistantLines).toHaveLength(1);
-    expect(assistantLines[0]).toContain("[assistant] I'll review the code.");
-    expect(toolLines).toHaveLength(1);
-    expect(toolLines[0]).toContain("[tool] read");
+    expect(assistantHeader).toBeDefined();
+    expect(assistantBody).toBe("I'll review the code.");
+    expect(toolLines).toHaveLength(2);
+    expect(toolLines[0]).toContain("[tool] reading...");
+    expect(toolLines[1]).toContain("[tool] running command...");
   });
 });

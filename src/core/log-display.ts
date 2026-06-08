@@ -1,0 +1,94 @@
+const ANSI = {
+  bold: "\x1b[1m",
+  dim: "\x1b[2m",
+  cyan: "\x1b[36m",
+  reset: "\x1b[0m",
+};
+
+const LOG_HEADER_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z /;
+
+export function isLogHeaderLine(line: string): boolean {
+  return LOG_HEADER_PATTERN.test(line);
+}
+
+export function isAssistantHeaderLine(line: string): boolean {
+  return LOG_HEADER_PATTERN.test(line) && /\s\[assistant\]\s*$/.test(line);
+}
+
+function colorEnabled(): boolean {
+  if (process.env.NO_COLOR !== undefined) {
+    return false;
+  }
+
+  return Boolean(process.stdout.isTTY);
+}
+
+export function renderMarkdownForTerminal(text: string): string {
+  if (!colorEnabled()) {
+    return text;
+  }
+
+  return text
+    .split("\n")
+    .map((line) => {
+      if (line.startsWith("### ")) {
+        return `${ANSI.bold}${line.slice(4)}${ANSI.reset}`;
+      }
+
+      if (line.startsWith("## ")) {
+        return `${ANSI.bold}${line.slice(3)}${ANSI.reset}`;
+      }
+
+      if (line.startsWith("# ")) {
+        return `${ANSI.bold}${line.slice(2)}${ANSI.reset}`;
+      }
+
+      if (line.startsWith("- ") || line.startsWith("* ")) {
+        return `  ${renderInlineMarkdown(line)}`;
+      }
+
+      return renderInlineMarkdown(line);
+    })
+    .join("\n");
+}
+
+function renderInlineMarkdown(line: string): string {
+  return line
+    .replace(/\*\*(.+?)\*\*/g, `${ANSI.bold}$1${ANSI.reset}`)
+    .replace(/`([^`]+)`/g, `${ANSI.cyan}$1${ANSI.reset}`);
+}
+
+export interface LogLinePrinter {
+  print(line: string): void;
+}
+
+export function createLogLinePrinter(): LogLinePrinter {
+  let inAssistantBlock = false;
+
+  return {
+    print(line: string) {
+      if (isAssistantHeaderLine(line)) {
+        console.log(line);
+        inAssistantBlock = true;
+        return;
+      }
+
+      if (inAssistantBlock && !isLogHeaderLine(line)) {
+        console.log(renderMarkdownForTerminal(line));
+        return;
+      }
+
+      inAssistantBlock = false;
+      console.log(line);
+    },
+  };
+}
+
+export function printLogLines(lines: string[]): void {
+  const printer = createLogLinePrinter();
+
+  for (const line of lines) {
+    printer.print(line);
+  }
+}

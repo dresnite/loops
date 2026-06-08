@@ -38,4 +38,19 @@ describe("logs", () => {
     expect(formatAssistantLogText("a".repeat(250), 4000)).toBe("a".repeat(250));
     expect(formatAssistantLogText("a".repeat(4500), 4000)).toMatch(/\.\.\.$/);
   });
+
+  it("appends multi-line assistant blocks", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    const paths = getStoragePaths(homeDir);
+
+    const { appendRunLogBlock } = await import("../../src/core/logs.js");
+    await appendRunLogBlock("abc123", "[assistant]", "# Title\n\nBody", paths);
+
+    const lines = await readRunLog("abc123", { tail: 10 }, paths);
+    expect(lines[0]).toContain("[assistant]");
+    expect(lines[1]).toBe("# Title");
+    expect(lines[2]).toBe("");
+    expect(lines[3]).toBe("Body");
+  });
 });

@@ -1,4 +1,5 @@
 import { defineCommand } from "citty";
+import { createLogLinePrinter, printLogLines } from "../core/log-display.js";
 import { followRunLog, readRunLog } from "../core/logs.js";
 import { listRuns } from "../core/runner.js";
 import { resolveRunTarget } from "../core/resolve.js";
@@ -51,19 +52,16 @@ export default defineCommand({
         return;
       }
 
-      for (const line of lines) {
-        console.log(line);
-      }
+      printLogLines(lines);
       return;
     }
 
     const initialLines = await readRunLog(run.id, { tail });
-    for (const line of initialLines) {
-      console.log(line);
-    }
+    printLogLines(initialLines);
 
+    const printer = createLogLinePrinter();
     const stop = await followRunLog(run.id, (line) => {
-      console.log(line);
+      printer.print(line);
     });
 
     await new Promise<void>((resolve) => {

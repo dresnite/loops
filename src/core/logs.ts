@@ -19,7 +19,25 @@ export function truncateLogText(text: string, max = 200): string {
 }
 
 export function formatAssistantLogText(text: string, max = 4000): string {
-  return truncateLogText(text, max);
+  const normalized = text
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .trim();
+
+  if (normalized.length <= max) {
+    return normalized;
+  }
+
+  const truncated = normalized.slice(0, max);
+  const lastNewline = truncated.lastIndexOf("\n");
+
+  if (lastNewline > max * 0.8) {
+    return `${truncated.slice(0, lastNewline)}\n...`;
+  }
+
+  return `${truncated}...`;
 }
 
 export async function appendRunLog(
@@ -32,6 +50,18 @@ export async function appendRunLog(
   await appendFile(runLogPath(paths, runId), line, "utf8");
 }
 
+export async function appendRunLogBlock(
+  runId: string,
+  label: string,
+  body: string,
+  paths = getStoragePaths(),
+): Promise<void> {
+  await ensureStorageDirs(paths);
+  const header = `${new Date().toISOString()} ${label}\n`;
+  const content = body.length > 0 ? `${body}\n` : "";
+  await appendFile(runLogPath(paths, runId), `${header}${content}`, "utf8");
+}
+
 export async function readRunLog(
   runId: string,
   options: { tail?: number } = {},
@@ -41,7 +71,10 @@ export async function readRunLog(
 
   try {
     const raw = await readFile(runLogPath(paths, runId), "utf8");
-    const lines = raw.split("\n").filter((line) => line.length > 0);
+    const lines = raw.split("\n");
+    while (lines.length > 0 && lines[lines.length - 1] === "") {
+      lines.pop();
+    }
     return lines.slice(-tail);
   } catch (error) {
     if (isErrnoCode(error, "ENOENT")) {
@@ -59,6 +92,7 @@ export async function followRunLog(
   const filePath = runLogPath(paths, runId);
   let offset = 0;
   let reading = false;
+  let partialLine = "";
 
   try {
     const { size } = await stat(filePath);
@@ -85,8 +119,19 @@ export async function followRunLog(
         const newText = content.subarray(offset).toString("utf8");
         offset = content.length;
 
-        for (const line of newText.split("\n").filter((entry) => entry.length > 0)) {
-          onLine(line);
+        const combined = partialLine + newText;
+        const chunks = combined.split("\n");
+
+        if (combined.endsWith("\n")) {
+          partialLine = "";
+          for (const line of chunks.slice(0, -1)) {
+            onLine(line);
+          }
+        } else {
+          partialLine = chunks.pop() ?? "";
+          for (const line of chunks) {
+            onLine(line);
+          }
         }
       } catch (error) {
         if (!isErrnoCode(error, "ENOENT")) {

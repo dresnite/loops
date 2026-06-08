@@ -6,7 +6,7 @@ import {
   mergeUsage,
   shouldStopForLimits,
 } from "./limits.js";
-import { appendRunLog } from "./logs.js";
+import { appendRunLog, appendRunLogBlock } from "./logs.js";
 import { isWorkerCliInvocation } from "./paths.js";
 import { isActiveRun, isRunStopped } from "./run-state.js";
 import { getRun, readRunRaw, saveRun } from "./runner.js";
@@ -96,7 +96,10 @@ async function consumeRun(
     run.currentRunId = agentRun.id;
     await saveRun(run);
 
-    const streamLogger = new StreamEventLogger((message) => log(run.id, message));
+    const streamLogger = new StreamEventLogger({
+      writeLine: (message) => log(run.id, message),
+      writeBlock: (label, body) => appendRunLogBlock(run.id, label, body),
+    });
 
     for await (const event of agentRun.stream()) {
       if (await isStopRequested(run)) {
