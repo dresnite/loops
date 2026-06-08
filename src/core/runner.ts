@@ -24,7 +24,7 @@ import {
   type StoragePaths,
 } from "./storage.js";
 
-function runPath(paths: StoragePaths, runId: string): string {
+export function runStatePath(paths: StoragePaths, runId: string): string {
   return join(paths.runs, `${runId}.json`);
 }
 
@@ -49,11 +49,19 @@ async function reconcileAndPersistRun(
   return reconciled;
 }
 
+/** Reads persisted run state without reconciling worker process liveness. */
+export async function readRunRaw(
+  runId: string,
+  paths = getStoragePaths(),
+): Promise<LoopRun | null> {
+  return readJson<LoopRun>(runStatePath(paths, runId));
+}
+
 export async function getRun(
   runId: string,
   paths = getStoragePaths(),
 ): Promise<LoopRun | null> {
-  const run = await readJson<LoopRun>(runPath(paths, runId));
+  const run = await readRunRaw(runId, paths);
   if (!run) {
     return null;
   }
@@ -67,7 +75,7 @@ export async function saveRun(
 ): Promise<void> {
   await ensureStorageDirs(paths);
   run.updatedAt = nowIso();
-  await writeJsonAtomic(runPath(paths, run.id), run);
+  await writeJsonAtomic(runStatePath(paths, run.id), run);
 }
 
 export async function listRuns(
@@ -212,6 +220,26 @@ export async function startRun(
   return run;
 }
 
+async function stopReconciledZombieRun(
+  run: LoopRun,
+  paths: StoragePaths,
+): Promise<LoopRun> {
+  run.status = "stopped";
+  run.error = undefined;
+  await saveRun(run, paths);
+  return run;
+}
+
+async function terminateWorkerProcess(pid: number): Promise<void> {
+  try {
+    process.kill(pid, "SIGTERM");
+  } catch (error) {
+    if (!isErrnoCode(error, "ESRCH")) {
+      throw error;
+    }
+  }
+}
+
 export async function stopRun(
   target: string,
   paths = getStoragePaths(),
@@ -228,10 +256,7 @@ export async function stopRun(
 
     const latest = resolveRunTarget(target, runs, { activeOnly: false });
     if (isWorkerExitedError(latest)) {
-      latest.status = "stopped";
-      latest.error = undefined;
-      await saveRun(latest, paths);
-      return latest;
+      return stopReconciledZombieRun(latest, paths);
     }
 
     throw error;
@@ -242,13 +267,7 @@ export async function stopRun(
   }
 
   if (run.pid) {
-    try {
-      process.kill(run.pid, "SIGTERM");
-    } catch (error) {
-      if (!isErrnoCode(error, "ESRCH")) {
-        throw error;
-      }
-    }
+    await terminateWorkerProcess(run.pid);
   }
 
   run.status = "stopped";

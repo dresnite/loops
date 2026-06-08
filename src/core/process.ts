@@ -35,6 +35,10 @@ export function setProcessAliveCheckerForTesting(
   processAliveChecker = checker;
 }
 
+export function resetProcessAliveCheckerForTesting(): void {
+  processAliveChecker = null;
+}
+
 export function shouldReconcileRun(run: LoopRun): boolean {
   return (
     isActiveRun(run) && run.pid !== undefined && !isProcessAlive(run.pid)

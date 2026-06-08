@@ -1,9 +1,9 @@
-import { join } from "pathe";
 import { afterEach, describe, expect, it } from "vitest";
 import { WORKER_EXITED_UNEXPECTEDLY } from "../../src/core/process.js";
 import {
   getRun,
   listRuns,
+  runStatePath,
   saveRun,
   stopRun,
 } from "../../src/core/runner.js";
@@ -49,7 +49,7 @@ describe("reconcileRun persistence", () => {
     expect(stopped.status).toBe("stopped");
     expect(stopped.error).toBeUndefined();
 
-    const persisted = await readJson<LoopRun>(join(paths.runs, "deadbeef.json"));
+    const persisted = await readJson<LoopRun>(runStatePath(paths, "deadbeef"));
     expect(persisted?.status).toBe("stopped");
   });
 });

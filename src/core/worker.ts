@@ -1,4 +1,3 @@
-import { join } from "pathe";
 import { getProvider } from "../providers/index.js";
 import type { LoopRun, TokenUsage } from "../types.js";
 import { getErrorMessage } from "./errors.js";
@@ -9,10 +8,10 @@ import {
 } from "./limits.js";
 import { appendRunLog } from "./logs.js";
 import { isWorkerCliInvocation } from "./paths.js";
-import { isActiveRun } from "./run-state.js";
-import { getRun, saveRun } from "./runner.js";
+import { isActiveRun, isRunStopped } from "./run-state.js";
+import { getRun, readRunRaw, saveRun } from "./runner.js";
 import { StreamEventLogger } from "./stream-log.js";
-import { getStoragePaths, readJson } from "./storage.js";
+import { getStoragePaths } from "./storage.js";
 
 const STOP_POLL_MS = 500;
 const USAGE_SAVE_DEBOUNCE_MS = 300;
@@ -65,7 +64,7 @@ async function log(runId: string, message: string): Promise<void> {
 
 async function isStopRequested(run: LoopRun): Promise<boolean> {
   const latest = await getRun(run.id);
-  return latest?.status === "stopped";
+  return latest !== null && isRunStopped(latest);
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -228,7 +227,7 @@ const isMainModule = isWorkerCliInvocation(process.argv, import.meta.url);
 
 async function markRunFailed(runId: string, message: string): Promise<void> {
   const paths = getStoragePaths();
-  const run = await readJson<LoopRun>(join(paths.runs, `${runId}.json`));
+  const run = await readRunRaw(runId, paths);
   if (!run || !isActiveRun(run)) {
     return;
   }

@@ -1,5 +1,5 @@
 import { defineCommand } from "citty";
-import { isActiveRun } from "../core/run-state.js";
+import { isLsDefaultVisible } from "../core/run-state.js";
 import { listRuns } from "../core/runner.js";
 import { formatRunLine } from "./_shared.js";
 
@@ -37,9 +37,7 @@ export default defineCommand({
       return;
     }
 
-    const visible = runs.filter(
-      (run) => isActiveRun(run) || run.status === "error",
-    );
+    const visible = runs.filter(isLsDefaultVisible);
 
     if (visible.length === 0) {
       console.log("No running loops.");

@@ -1,4 +1,5 @@
 import {
+  resetProcessAliveCheckerForTesting,
   setProcessAliveCheckerForTesting,
 } from "../../src/core/process.js";
 import {
@@ -6,6 +7,7 @@ import {
   setWorkerSpawnerForTesting,
   type WorkerSpawner,
 } from "../../src/core/runner.js";
+import { resetWriteQueuesForTesting } from "../../src/core/storage.js";
 
 export interface TestRuntimeOptions {
   processAlive?: boolean | ((pid: number) => boolean);
@@ -28,6 +30,7 @@ export function setupTestRuntime(options: TestRuntimeOptions = {}): void {
 }
 
 export function resetTestRuntime(): void {
-  setProcessAliveCheckerForTesting(null);
+  resetProcessAliveCheckerForTesting();
   resetWorkerSpawnerForTesting();
+  resetWriteQueuesForTesting();
 }

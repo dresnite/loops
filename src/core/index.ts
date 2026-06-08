@@ -3,12 +3,18 @@ export {
   getRun,
   listActiveRunsForLoop,
   listRuns,
+  readRunRaw,
   resetWorkerSpawnerForTesting,
+  runStatePath,
   setWorkerSpawnerForTesting,
   startRun,
   stopRun,
 } from "./runner.js";
-export { isActiveRun } from "./run-state.js";
+export {
+  isActiveRun,
+  isLsDefaultVisible,
+  isRunStopped,
+} from "./run-state.js";
 export { resolveRunTarget, RunNotFoundError } from "./resolve.js";
 export {
   appendRunLog,

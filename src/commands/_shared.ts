@@ -1,4 +1,5 @@
 import { resolve } from "pathe";
+import type { RunStatus } from "../types.js";
 
 export function resolveRepoPath(repo?: string): string {
   return resolve(repo ?? process.cwd());
@@ -33,7 +34,7 @@ export function parseTasks(value?: string): number | undefined {
 export function formatRunLine(run: {
   id: string;
   loopName: string;
-  status: string;
+  status: RunStatus;
   limits: { budgetUsd?: number; maxTasks?: number };
   tasksCompleted: number;
   estimatedCostUsd: number;

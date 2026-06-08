@@ -7,7 +7,11 @@ import lsCommand from "../../src/commands/ls.js";
 import rmCommand from "../../src/commands/rm.js";
 import runCommandDef from "../../src/commands/run.js";
 import stopCommand from "../../src/commands/stop.js";
-import { getRun, listRuns } from "../../src/core/runner.js";
+import {
+  getRun,
+  listRuns,
+  saveRun,
+} from "../../src/core/runner.js";
 import { getStoragePaths } from "../../src/core/storage.js";
 import {
   MockProvider,
@@ -15,8 +19,7 @@ import {
   setProviderForTesting,
 } from "../../src/providers/index.js";
 import { executeWorker } from "../../src/core/worker.js";
-import { saveRun } from "../../src/core/runner.js";
-import { createEmptyUsage } from "../../src/core/limits.js";
+import { makeTestRun } from "../helpers/make-run.js";
 import { createTempHome } from "../helpers/temp-home.js";
 import { setupTestRuntime } from "../helpers/test-runtime.js";
 
@@ -186,22 +189,12 @@ describe("loops run/ls/stop/rm", () => {
     setupTestRuntime({ processAlive: false, workerPid: 9001 });
 
     await saveRun(
-      {
+      makeTestRun({
         id: "zombie01",
         loopName: "refactor",
-        provider: "cursor",
-        repoPath: "/repo",
-        prompt: "prompt",
-        status: "running",
-        continuous: true,
         pid: 999_999,
         limits: { maxTasks: 25 },
-        tasksCompleted: 0,
-        usage: createEmptyUsage(),
-        estimatedCostUsd: 0,
-        startedAt: "2026-06-08T15:11:08.321Z",
-        updatedAt: "2026-06-08T15:11:13.828Z",
-      },
+      }),
       paths,
     );
 
