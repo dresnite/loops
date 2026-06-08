@@ -17,13 +17,14 @@ import {
 } from "../../src/providers/index.js";
 import { setModelListForTesting } from "../../src/core/models.js";
 import { executeWorker } from "../../src/core/worker.js";
+import { COMPOSER_25_FAST_ALIAS } from "../../src/core/models.js";
 import { DEFAULT_MODEL } from "../../src/constants.js";
+import { COMPOSER_25_WITH_FAST_PARAM } from "../helpers/composer-models.js";
 import { createTempHome } from "../helpers/temp-home.js";
 import { setupTestRuntime } from "../helpers/test-runtime.js";
 
 const TEST_MODELS = [
-  { id: "composer-2.5", displayName: "Composer 2.5" },
-  { id: "composer-2.5-fast", displayName: "Composer 2.5 Fast" },
+  COMPOSER_25_WITH_FAST_PARAM,
   { id: "gpt-5.2", displayName: "GPT-5.2" },
 ];
 
@@ -101,11 +102,11 @@ describe("runner", () => {
       {
         loopName: "refactor",
         repoPath,
-        model: "composer-2.5-fast",
+        model: COMPOSER_25_FAST_ALIAS,
       },
       paths,
     );
-    expect(fromFlag.model).toBe("composer-2.5-fast");
+    expect(fromFlag.model).toBe(COMPOSER_25_FAST_ALIAS);
   });
 
   it("rejects unknown models", async () => {

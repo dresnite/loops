@@ -9,6 +9,7 @@ import {
 import { appendRunLog, appendRunLogBlock } from "./logs.js";
 import { isWorkerCliInvocation } from "./paths.js";
 import { isActiveRun, isRunStopped } from "./run-state.js";
+import { resolveModelSelectionForRun } from "./models.js";
 import { syncRunModelFromDisk } from "./run-model.js";
 import { persistWorkerRun, syncRunPromptFromDisk } from "./run-prompt.js";
 import { getRun, readRunRaw, saveRun } from "./runner.js";
@@ -79,9 +80,11 @@ async function consumeRun(
   taskNumber: number,
 ): Promise<{ status: "finished" | "error" | "cancelled"; usage: TokenUsage }> {
   const provider = getProvider(run.provider);
+  const modelSelection = await resolveModelSelectionForRun(run.model);
   const session = await provider.createSession({
     repoPath: run.repoPath,
     model: run.model,
+    modelSelection,
   });
   run.agentId = session.agentId;
   await persistWorkerRun(run);

@@ -9,13 +9,12 @@ import { setModelListForTesting } from "../../src/core/models.js";
 import { startRun, setWorkerSpawnerForTesting } from "../../src/core/runner.js";
 import { getStoragePaths } from "../../src/core/storage.js";
 import { MockProvider, setProviderForTesting } from "../../src/providers/index.js";
+import { COMPOSER_25_FAST_ALIAS } from "../../src/core/models.js";
 import { DEFAULT_MODEL } from "../../src/constants.js";
+import { COMPOSER_25_WITH_FAST_PARAM } from "../helpers/composer-models.js";
 import { createTempHome } from "../helpers/temp-home.js";
 
-const TEST_MODELS = [
-  { id: "composer-2.5", displayName: "Composer 2.5", aliases: [] },
-  { id: "composer-2.5-fast", displayName: "Composer 2.5 Fast", aliases: [] },
-];
+const TEST_MODELS = [COMPOSER_25_WITH_FAST_PARAM];
 
 const cleanups: Array<() => Promise<void>> = [];
 
@@ -52,7 +51,7 @@ describe("loops model", () => {
       {
         loopName: "structure-agent",
         repoPath,
-        model: "composer-2.5-fast",
+        model: COMPOSER_25_FAST_ALIAS,
       },
       paths,
     );
@@ -73,7 +72,7 @@ describe("loops model", () => {
 
     const output = logs.join("\n");
     expect(output).toContain("structure-agent");
-    expect(output).toContain("Model: composer-2.5-fast");
+    expect(output).toContain(`Model: ${COMPOSER_25_FAST_ALIAS}`);
     expect(output).toContain("Provider: cursor");
   });
 
@@ -100,7 +99,7 @@ describe("loops model", () => {
       {
         loopName: "structure-agent",
         repoPath,
-        model: "composer-2.5-fast",
+        model: COMPOSER_25_FAST_ALIAS,
       },
       paths,
     );

@@ -1,6 +1,7 @@
 import { Agent, CursorAgentError, type Run } from "@cursor/sdk";
 import { DEFAULT_MODEL } from "../constants.js";
 import { requireCursorApiKey } from "../core/credentials.js";
+import { resolveModelSelectionForRun } from "../core/models.js";
 import type {
   AgentProvider,
   AgentRun,
@@ -105,9 +106,12 @@ export class CursorProvider implements AgentProvider {
 
   async createSession(options: SessionOptions): Promise<AgentSession> {
     try {
+      const model =
+        options.modelSelection ??
+        (await resolveModelSelectionForRun(options.model ?? DEFAULT_MODEL, options.apiKey));
       const agent = await Agent.create({
         apiKey: options.apiKey ?? (await resolveApiKey()),
-        model: { id: options.model ?? DEFAULT_MODEL },
+        model,
         local: { cwd: options.repoPath },
       });
       return new CursorAgentSession(agent);
@@ -124,9 +128,12 @@ export class CursorProvider implements AgentProvider {
     options: SessionOptions,
   ): Promise<AgentSession> {
     try {
+      const model =
+        options.modelSelection ??
+        (await resolveModelSelectionForRun(options.model ?? DEFAULT_MODEL, options.apiKey));
       const agent = await Agent.resume(agentId, {
         apiKey: options.apiKey ?? (await resolveApiKey()),
-        model: { id: options.model ?? DEFAULT_MODEL },
+        model,
         local: { cwd: options.repoPath },
       });
       return new CursorAgentSession(agent);

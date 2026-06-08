@@ -1,3 +1,4 @@
+import type { ModelSelection } from "@cursor/sdk";
 import type { ProviderId } from "../constants.js";
 import type { TokenUsage } from "../types.js";
 
@@ -20,6 +21,7 @@ export interface SessionOptions {
   repoPath: string;
   apiKey?: string;
   model?: string;
+  modelSelection?: ModelSelection;
 }
 
 export interface AgentRun {

@@ -8,18 +8,17 @@ import { getRun, startRun } from "../../src/core/runner.js";
 import { getStoragePaths } from "../../src/core/storage.js";
 import { executeWorker } from "../../src/core/worker.js";
 import { DEFAULT_MODEL } from "../../src/constants.js";
+import { COMPOSER_25_FAST_ALIAS } from "../../src/core/models.js";
 import {
   MockProvider,
   resetMockProviderIds,
   setProviderForTesting,
 } from "../../src/providers/index.js";
+import { COMPOSER_25_WITH_FAST_PARAM } from "../helpers/composer-models.js";
 import { createTempHome } from "../helpers/temp-home.js";
 import { setupTestRuntime } from "../helpers/test-runtime.js";
 
-const TEST_MODELS = [
-  { id: "composer-2.5", displayName: "Composer 2.5", aliases: [] },
-  { id: "composer-2.5-fast", displayName: "Composer 2.5 Fast", aliases: [] },
-];
+const TEST_MODELS = [COMPOSER_25_WITH_FAST_PARAM];
 
 const cleanups: Array<() => Promise<void>> = [];
 let mockProvider: MockProvider;
@@ -57,6 +56,34 @@ async function waitForSessionCount(count: number): Promise<void> {
 }
 
 describe("worker model reload", () => {
+  it("pins composer-2.5 to the standard tier when a run starts", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    vi.stubEnv("HOME", homeDir);
+    const paths = getStoragePaths(homeDir);
+
+    const repoPath = join(homeDir, "repo");
+    await mkdir(repoPath, { recursive: true });
+    await writeFile(join(repoPath, "README.md"), "# demo", "utf8");
+
+    await addLoop({ name: "refactor", defaultPrompt: "default" }, paths);
+    const run = await startRun(
+      {
+        loopName: "refactor",
+        repoPath,
+        once: true,
+      },
+      paths,
+    );
+
+    const exitCode = await executeWorker(run.id);
+    expect(exitCode).toBe(0);
+    expect(mockProvider.sessionModelSelections[0]).toEqual({
+      id: "composer-2.5",
+      params: [{ id: "fast", value: "false" }],
+    });
+  });
+
   it("uses an updated model on the next task of a continuous run", async () => {
     const { homeDir, cleanup } = await createTempHome();
     cleanups.push(cleanup);
@@ -72,7 +99,7 @@ describe("worker model reload", () => {
       {
         loopName: "refactor",
         repoPath,
-        model: "composer-2.5-fast",
+        model: COMPOSER_25_FAST_ALIAS,
         maxTasks: 2,
       },
       paths,
@@ -81,16 +108,21 @@ describe("worker model reload", () => {
     const workerPromise = executeWorker(run.id);
 
     await waitForSessionCount(1);
-    expect(mockProvider.sessionModels[0]).toBe("composer-2.5-fast");
+    expect(mockProvider.sessionModels[0]).toBe("composer-2.5");
+    expect(mockProvider.sessionModelSelections[0]).toEqual({
+      id: "composer-2.5",
+      params: [{ id: "fast", value: "true" }],
+    });
 
     await setRunModel(run.id, DEFAULT_MODEL, paths);
 
     const exitCode = await workerPromise;
     expect(exitCode).toBe(0);
-    expect(mockProvider.sessionModels).toEqual([
-      "composer-2.5-fast",
-      DEFAULT_MODEL,
-    ]);
+    expect(mockProvider.sessionModels).toEqual(["composer-2.5", "composer-2.5"]);
+    expect(mockProvider.sessionModelSelections[1]).toEqual({
+      id: "composer-2.5",
+      params: [{ id: "fast", value: "false" }],
+    });
 
     const finished = await getRun(run.id, paths);
     expect(finished?.tasksCompleted).toBe(2);
@@ -112,7 +144,7 @@ describe("worker model reload", () => {
       {
         loopName: "refactor",
         repoPath,
-        model: "composer-2.5-fast",
+        model: COMPOSER_25_FAST_ALIAS,
         maxTasks: 2,
       },
       paths,
@@ -126,16 +158,21 @@ describe("worker model reload", () => {
     const workerPromise = executeWorker(run.id);
 
     await waitForSessionCount(1);
-    expect(mockProvider.sessionModels[0]).toBe("composer-2.5-fast");
+    expect(mockProvider.sessionModels[0]).toBe("composer-2.5");
+    expect(mockProvider.sessionModelSelections[0]).toEqual({
+      id: "composer-2.5",
+      params: [{ id: "fast", value: "true" }],
+    });
 
     await setRunModel(run.id, DEFAULT_MODEL, paths);
 
     const exitCode = await workerPromise;
     expect(exitCode).toBe(0);
-    expect(mockProvider.sessionModels).toEqual([
-      "composer-2.5-fast",
-      DEFAULT_MODEL,
-    ]);
+    expect(mockProvider.sessionModels).toEqual(["composer-2.5", "composer-2.5"]);
+    expect(mockProvider.sessionModelSelections[1]).toEqual({
+      id: "composer-2.5",
+      params: [{ id: "fast", value: "false" }],
+    });
 
     const finished = await getRun(run.id, paths);
     expect(finished?.model).toBe(DEFAULT_MODEL);

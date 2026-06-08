@@ -7,7 +7,7 @@ import { addLoop } from "../../src/core/registry.js";
 import { getRun, startRun } from "../../src/core/runner.js";
 import { getStoragePaths } from "../../src/core/storage.js";
 import { executeWorker } from "../../src/core/worker.js";
-import { DEFAULT_MODEL } from "../../src/constants.js";
+import { COMPOSER_25_WITH_FAST_PARAM } from "../helpers/composer-models.js";
 import {
   MockProvider,
   resetMockProviderIds,
@@ -23,7 +23,7 @@ beforeEach(() => {
   vi.unstubAllEnvs();
   delete process.env.LOOPS_TEST_MODE;
   setupTestRuntime();
-  setModelListForTesting([{ id: DEFAULT_MODEL, displayName: "Composer 2.5" }]);
+  setModelListForTesting([COMPOSER_25_WITH_FAST_PARAM]);
   resetMockProviderIds();
   mockProvider = new MockProvider({ runs: [{}, {}] });
   setProviderForTesting(mockProvider);

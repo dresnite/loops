@@ -23,7 +23,7 @@ loops key set cursor cursor_...
 - Continuous runs reuse the same agent for conversation continuity
 - `loops stop` cancels the in-flight run and terminates the worker
 
-**Default model:** `composer-2.5` (standard tier, not `composer-2.5-fast`)
+**Default model:** `composer-2.5` (standard tier). Cursor exposes Composer 2.5 as one model id with a `fast` parameter; Loops passes `fast: false` for `composer-2.5` and `fast: true` when you select `composer-2.5-fast`.
 
 Set a default on the definition or override per run:
 

@@ -89,6 +89,8 @@ When you run a loop, the model is resolved in this order:
 
 Invalid models are rejected before the worker starts.
 
+For Composer 2.5, Cursor uses a single model id with a `fast` parameter. Loops passes `fast: false` for `composer-2.5` (standard tier) and `fast: true` when you select `composer-2.5-fast`.
+
 ## Run model
 
 Each run stores the resolved model id on its run record (`model`).

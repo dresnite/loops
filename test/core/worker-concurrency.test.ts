@@ -6,7 +6,8 @@ import { getRun, startRun } from "../../src/core/runner.js";
 import { getStoragePaths } from "../../src/core/storage.js";
 import { setModelListForTesting } from "../../src/core/models.js";
 import { executeWorker } from "../../src/core/worker.js";
-import { DEFAULT_MODEL } from "../../src/constants.js";
+import { COMPOSER_25_FAST_ALIAS } from "../../src/core/models.js";
+import { COMPOSER_25_WITH_FAST_PARAM } from "../helpers/composer-models.js";
 import {
   MockProvider,
   resetMockProviderIds,
@@ -23,10 +24,7 @@ beforeEach(() => {
   vi.unstubAllEnvs();
   delete process.env.LOOPS_TEST_MODE;
   setupTestRuntime();
-  setModelListForTesting([
-    { id: DEFAULT_MODEL, displayName: "Composer 2.5" },
-    { id: "composer-2.5-fast", displayName: "Composer 2.5 Fast" },
-  ]);
+  setModelListForTesting([COMPOSER_25_WITH_FAST_PARAM]);
   resetMockProviderIds();
   mockProvider = new MockProvider({
     runs: [{ rapidUsageCalls: 50 }],
@@ -64,13 +62,17 @@ describe("worker concurrency", () => {
         loopName: "refactor",
         repoPath,
         once: true,
-        model: "composer-2.5-fast",
+        model: COMPOSER_25_FAST_ALIAS,
       },
       paths,
     );
 
     const exitCode = await executeWorker(run.id);
-    expect(mockProvider.lastSessionOptions?.model).toBe("composer-2.5-fast");
+    expect(mockProvider.lastSessionOptions?.model).toBe(COMPOSER_25_FAST_ALIAS);
+    expect(mockProvider.lastSessionOptions?.modelSelection).toEqual({
+      id: "composer-2.5",
+      params: [{ id: "fast", value: "true" }],
+    });
     expect(mockProvider.sentPrompts).toHaveLength(1);
     expect(exitCode).toBe(0);
 

@@ -8,15 +8,14 @@ import {
 import { persistWorkerRun } from "../../src/core/run-prompt.js";
 import { getRun, readRunRaw, saveRun } from "../../src/core/runner.js";
 import { getStoragePaths } from "../../src/core/storage.js";
+import { COMPOSER_25_FAST_ALIAS } from "../../src/core/models.js";
 import { DEFAULT_MODEL } from "../../src/constants.js";
 import { setModelListForTesting } from "../../src/core/models.js";
+import { COMPOSER_25_WITH_FAST_PARAM } from "../helpers/composer-models.js";
 import { makeTestRun } from "../helpers/make-run.js";
 import { createTempHome } from "../helpers/temp-home.js";
 
-const TEST_MODELS = [
-  { id: "composer-2.5", displayName: "Composer 2.5", aliases: [] },
-  { id: "composer-2.5-fast", displayName: "Composer 2.5 Fast", aliases: [] },
-];
+const TEST_MODELS = [COMPOSER_25_WITH_FAST_PARAM];
 
 const cleanups: Array<() => Promise<void>> = [];
 
@@ -43,7 +42,7 @@ describe("run-model", () => {
     setModelListForTesting(TEST_MODELS);
     const paths = getStoragePaths(homeDir);
 
-    const run = makeTestRun({ model: "composer-2.5-fast" });
+    const run = makeTestRun({ model: COMPOSER_25_FAST_ALIAS });
     await saveRun(run, paths);
 
     const updated = await setRunModel(run.id, "composer-2.5", paths);
@@ -94,10 +93,10 @@ describe("run-model", () => {
     vi.stubEnv("HOME", homeDir);
     const paths = getStoragePaths(homeDir);
 
-    const run = makeTestRun({ model: "composer-2.5-fast", tasksCompleted: 2 });
+    const run = makeTestRun({ model: COMPOSER_25_FAST_ALIAS, tasksCompleted: 2 });
     await saveRun(run, paths);
 
-    run.model = "composer-2.5-fast";
+    run.model = COMPOSER_25_FAST_ALIAS;
     run.tasksCompleted = 2;
 
     const onDisk = await getRun(run.id, paths);
@@ -120,7 +119,7 @@ describe("run-model", () => {
     const run = makeTestRun({ model: DEFAULT_MODEL });
     await saveRun(run, paths);
 
-    run.model = "composer-2.5-fast";
+    run.model = COMPOSER_25_FAST_ALIAS;
     run.tasksCompleted = 3;
 
     await persistWorkerRun(run, paths);

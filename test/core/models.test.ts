@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   assertValidModel,
+  buildModelSelection,
+  COMPOSER_25_FAST_ALIAS,
   findModelByIdOrAlias,
   resolveModel,
   resolveRunModel,
@@ -8,10 +10,10 @@ import {
 } from "../../src/core/models.js";
 import { DEFAULT_MODEL } from "../../src/constants.js";
 import type { LoopDefinition } from "../../src/types.js";
+import { COMPOSER_25_WITH_FAST_PARAM } from "../helpers/composer-models.js";
 
 const TEST_MODELS = [
-  { id: "composer-2.5", displayName: "Composer 2.5", aliases: [] },
-  { id: "composer-2.5-fast", displayName: "Composer 2.5 Fast", aliases: [] },
+  COMPOSER_25_WITH_FAST_PARAM,
   { id: "gpt-5.2", displayName: "GPT-5.2", aliases: ["gpt5.2"] },
 ];
 
@@ -75,8 +77,8 @@ describe("models", () => {
     } satisfies LoopDefinition;
 
     expect(resolveRunModel({}, definition)).toBe("gpt-5.2");
-    expect(resolveRunModel({ model: "composer-2.5-fast" }, definition)).toBe(
-      "composer-2.5-fast",
+    expect(resolveRunModel({ model: COMPOSER_25_FAST_ALIAS }, definition)).toBe(
+      COMPOSER_25_FAST_ALIAS,
     );
     expect(
       resolveRunModel(
@@ -84,5 +86,25 @@ describe("models", () => {
         { ...definition, defaultModel: undefined },
       ),
     ).toBe(DEFAULT_MODEL);
+  });
+
+  it("pins composer-2.5 to the standard tier in SDK model selection", () => {
+    expect(buildModelSelection(DEFAULT_MODEL, TEST_MODELS)).toEqual({
+      id: "composer-2.5",
+      params: [{ id: "fast", value: "false" }],
+    });
+  });
+
+  it("maps composer-2.5-fast to composer-2.5 with fast enabled", () => {
+    expect(buildModelSelection(COMPOSER_25_FAST_ALIAS, TEST_MODELS)).toEqual({
+      id: "composer-2.5",
+      params: [{ id: "fast", value: "true" }],
+    });
+  });
+
+  it("leaves non-composer models without variant params", () => {
+    expect(buildModelSelection("gpt-5.2", TEST_MODELS)).toEqual({
+      id: "gpt-5.2",
+    });
   });
 });

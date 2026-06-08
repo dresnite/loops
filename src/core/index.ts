@@ -59,9 +59,12 @@ export {
 export type { TokenRates } from "./model-pricing.js";
 export {
   assertValidModel,
+  buildModelSelection,
+  COMPOSER_25_FAST_ALIAS,
   findModelByIdOrAlias,
   listAvailableModels,
   resolveModel,
+  resolveModelSelectionForRun,
   resolveRunModel,
   setModelListForTesting,
 } from "./models.js";
