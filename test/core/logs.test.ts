@@ -1,4 +1,4 @@
-import { appendFile, writeFile } from "node:fs/promises";
+import { appendFile, readFile, writeFile } from "node:fs/promises";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   appendRunLog,
@@ -11,6 +11,7 @@ import {
   isAssistantHeaderLine,
   isLogHeaderLine,
   logHeaderLabel,
+  readLogFileDelta,
   readRunLog,
   runLogPath,
   splitIncomingLogText,
@@ -45,6 +46,61 @@ describe("log format", () => {
     expect(
       isAssistantHeaderLine(formatLogHeader("[backup assistant]")),
     ).toBe(false);
+  });
+
+  it("reads appended file deltas without dropping partial lines", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    const paths = getStoragePaths(homeDir);
+    const filePath = runLogPath(paths, "abc123");
+
+    await appendRunLog("abc123", "[start] existing", paths);
+
+    const initial = await readFile(filePath);
+    let state = { offset: initial.length, partialLine: "" };
+
+    const partialHeader = formatLogHeader(
+      "[partial",
+      new Date("2026-06-08T15:14:48.516Z"),
+    );
+    await appendFile(filePath, partialHeader, "utf8");
+    const afterPartial = await readFile(filePath);
+    expect(readLogFileDelta(afterPartial, state)).toEqual({
+      offset: afterPartial.length,
+      partialLine: partialHeader,
+      completeLines: [],
+    });
+    state = readLogFileDelta(afterPartial, state);
+
+    await appendFile(filePath, " line]\n", "utf8");
+    const afterComplete = await readFile(filePath);
+    expect(readLogFileDelta(afterComplete, state)).toEqual({
+      offset: afterComplete.length,
+      partialLine: "",
+      completeLines: ["2026-06-08T15:14:48.516Z [partial line]"],
+    });
+  });
+
+  it("resets follow state when the log file shrinks", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    const paths = getStoragePaths(homeDir);
+    const filePath = runLogPath(paths, "abc123");
+
+    await appendRunLog("abc123", "[start] existing", paths);
+    const full = await readFile(filePath);
+
+    const truncated = Buffer.from("", "utf8");
+    expect(
+      readLogFileDelta(truncated, {
+        offset: full.length,
+        partialLine: "unfinished",
+      }),
+    ).toEqual({
+      offset: 0,
+      partialLine: "",
+      completeLines: [],
+    });
   });
 
   it("splits complete and partial lines from appended log text", () => {
@@ -194,6 +250,24 @@ describe("followRunLog", () => {
     expect(received).toHaveLength(1);
     expect(received[0]).toContain("[partial line]");
     stop();
+  });
+
+  it("stops emitting lines after follow is cancelled", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    const paths = getStoragePaths(homeDir);
+
+    await appendRunLog("abc123", "[start] existing", paths);
+
+    const received: string[] = [];
+    const stop = await followRunLog("abc123", (line) => received.push(line), paths);
+    await waitForFollowPolls();
+    stop();
+
+    await appendRunLog("abc123", "[after stop] ignored", paths);
+    await waitForFollowPolls();
+
+    expect(received).toEqual([]);
   });
 
   it("recovers when the log file is truncated", async () => {

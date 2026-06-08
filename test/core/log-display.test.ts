@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   createLogLinePrinter,
+  displayLogLine,
+  INITIAL_LOG_LINE_DISPLAY_STATE,
   renderMarkdownForTerminal,
 } from "../../src/core/log-display.js";
 import { ASSISTANT_LOG_LABEL, formatLogHeader } from "../../src/core/logs.js";
@@ -21,6 +23,22 @@ describe("log display", () => {
         process.env.NO_COLOR = previous;
       }
     }
+  });
+
+  it("tracks assistant block state as a pure function", () => {
+    const header = formatLogHeader(ASSISTANT_LOG_LABEL);
+    const taskHeader = formatLogHeader("[task 1] finished");
+
+    let state = INITIAL_LOG_LINE_DISPLAY_STATE;
+
+    ({ state } = displayLogLine(header, state));
+    expect(state.inAssistantBlock).toBe(true);
+
+    ({ state } = displayLogLine("# Title", state));
+    expect(state.inAssistantBlock).toBe(true);
+
+    ({ state } = displayLogLine(taskHeader, state));
+    expect(state.inAssistantBlock).toBe(false);
   });
 
   it("renders assistant block body lines with markdown formatting", () => {

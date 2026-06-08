@@ -19,7 +19,7 @@ export function isLogHeaderLine(line: string): boolean {
 }
 
 export function logHeaderLabel(line: string): string | null {
-  const match = LOG_HEADER_PATTERN.exec(line);
+  const match = line.match(LOG_HEADER_PATTERN);
   return match ? line.slice(match[0].length) : null;
 }
 
@@ -30,6 +30,42 @@ export function isAssistantHeaderLine(line: string): boolean {
 export interface IncomingLogTextSplit {
   partialLine: string;
   completeLines: string[];
+}
+
+export interface LogFileFollowState {
+  offset: number;
+  partialLine: string;
+}
+
+export interface LogFileFollowDelta {
+  offset: number;
+  partialLine: string;
+  completeLines: string[];
+}
+
+export function readLogFileDelta(
+  content: Buffer,
+  state: LogFileFollowState,
+): LogFileFollowDelta {
+  let { offset, partialLine } = state;
+
+  if (content.length < offset) {
+    offset = 0;
+    partialLine = "";
+  }
+
+  if (content.length <= offset) {
+    return { offset, partialLine, completeLines: [] };
+  }
+
+  const newText = content.subarray(offset).toString("utf8");
+  const parsed = splitIncomingLogText(partialLine, newText);
+
+  return {
+    offset: content.length,
+    partialLine: parsed.partialLine,
+    completeLines: parsed.completeLines,
+  };
 }
 
 export function splitIncomingLogText(
@@ -141,19 +177,21 @@ export async function readRunLog(
   }
 }
 
+export type LogFollowStop = () => void;
+
 export async function followRunLog(
   runId: string,
   onLine: (line: string) => void,
   paths = getStoragePaths(),
-): Promise<() => void> {
+): Promise<LogFollowStop> {
   const filePath = runLogPath(paths, runId);
-  let offset = 0;
+  let followState: LogFileFollowState = { offset: 0, partialLine: "" };
   let reading = false;
-  let partialLine = "";
+  let stopped = false;
 
   try {
     const { size } = await stat(filePath);
-    offset = size;
+    followState.offset = size;
   } catch (error) {
     if (!isErrnoCode(error, "ENOENT")) {
       throw error;
@@ -161,28 +199,28 @@ export async function followRunLog(
   }
 
   async function pollAppend(): Promise<void> {
-    const content = await readFile(filePath);
-    if (content.length < offset) {
-      offset = 0;
-      partialLine = "";
-    }
-
-    if (content.length <= offset) {
+    if (stopped) {
       return;
     }
 
-    const newText = content.subarray(offset).toString("utf8");
-    offset = content.length;
+    const content = await readFile(filePath);
+    if (stopped) {
+      return;
+    }
 
-    const parsed = splitIncomingLogText(partialLine, newText);
-    partialLine = parsed.partialLine;
-    for (const line of parsed.completeLines) {
+    const delta = readLogFileDelta(content, followState);
+    followState = {
+      offset: delta.offset,
+      partialLine: delta.partialLine,
+    };
+
+    for (const line of delta.completeLines) {
       onLine(line);
     }
   }
 
   const interval = setInterval(() => {
-    if (reading) {
+    if (stopped || reading) {
       return;
     }
 
@@ -201,6 +239,7 @@ export async function followRunLog(
   }, FOLLOW_POLL_MS);
 
   return () => {
+    stopped = true;
     clearInterval(interval);
   };
 }

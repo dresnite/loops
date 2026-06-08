@@ -55,6 +55,19 @@ export interface LogLinePrinter {
   print(line: string): void;
 }
 
+export interface LogLineDisplayState {
+  inAssistantBlock: boolean;
+}
+
+export interface LogLineDisplayResult {
+  state: LogLineDisplayState;
+  output: string;
+}
+
+export const INITIAL_LOG_LINE_DISPLAY_STATE: LogLineDisplayState = {
+  inAssistantBlock: false,
+};
+
 function formatLogLine(line: string, inAssistantBlock: boolean): string {
   if (inAssistantBlock && !isLogHeaderLine(line)) {
     return renderMarkdownForTerminal(line);
@@ -63,24 +76,37 @@ function formatLogLine(line: string, inAssistantBlock: boolean): string {
   return line;
 }
 
+export function displayLogLine(
+  line: string,
+  state: LogLineDisplayState = INITIAL_LOG_LINE_DISPLAY_STATE,
+): LogLineDisplayResult {
+  if (isAssistantHeaderLine(line)) {
+    return {
+      state: { inAssistantBlock: true },
+      output: line,
+    };
+  }
+
+  const inAssistantBlock = isLogHeaderLine(line)
+    ? false
+    : state.inAssistantBlock;
+
+  return {
+    state: { inAssistantBlock },
+    output: formatLogLine(line, inAssistantBlock),
+  };
+}
+
 export function createLogLinePrinter(
   output: LogLineOutput = (line) => console.log(line),
 ): LogLinePrinter {
-  let inAssistantBlock = false;
+  let state = INITIAL_LOG_LINE_DISPLAY_STATE;
 
   return {
     print(line: string) {
-      if (isAssistantHeaderLine(line)) {
-        inAssistantBlock = true;
-        output(line);
-        return;
-      }
-
-      if (isLogHeaderLine(line)) {
-        inAssistantBlock = false;
-      }
-
-      output(formatLogLine(line, inAssistantBlock));
+      const result = displayLogLine(line, state);
+      state = result.state;
+      output(result.output);
     },
   };
 }
