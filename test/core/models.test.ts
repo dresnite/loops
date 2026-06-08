@@ -28,6 +28,22 @@ describe("models", () => {
     expect(findModelByIdOrAlias("missing", TEST_MODELS)).toBeUndefined();
   });
 
+  it("prefers exact id match over alias match", () => {
+    const models = [
+      {
+        id: "composer-2.5-fast",
+        displayName: "Composer 2.5 Fast",
+        aliases: ["composer-2.5"],
+      },
+      { id: "composer-2.5", displayName: "Composer 2.5", aliases: [] },
+    ];
+
+    expect(findModelByIdOrAlias("composer-2.5", models)?.id).toBe(
+      "composer-2.5",
+    );
+    expect(resolveModel("composer-2.5", models)).toBe("composer-2.5");
+  });
+
   it("resolves canonical model ids", () => {
     expect(resolveModel("gpt5.2", TEST_MODELS)).toBe("gpt-5.2");
   });

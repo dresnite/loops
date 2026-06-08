@@ -117,6 +117,7 @@ export class MockProvider implements AgentProvider {
   lastSessionOptions: SessionOptions | undefined;
   lastSession: MockAgentSession | undefined;
   readonly sentPrompts: string[] = [];
+  readonly sessionModels: string[] = [];
 
   constructor(options: MockProviderOptions = {}) {
     this.options = options;
@@ -124,6 +125,7 @@ export class MockProvider implements AgentProvider {
 
   async createSession(options: SessionOptions): Promise<AgentSession> {
     this.lastSessionOptions = options;
+    this.sessionModels.push(options.model ?? "composer-2.5");
 
     if (this.options.failCreate) {
       throw new Error("startup failed: mock provider failure");

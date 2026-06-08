@@ -151,6 +151,39 @@ loops prompt set a1b2c3d4 --preset ./prompts/structure-agent.md
 
 Provide exactly one of `--prompt` or `--preset`. For an active continuous run, the worker picks up the new prompt on the next task.
 
+## `loops model show|set <name|run-id>`
+
+View or update the model for a loop run.
+
+### `loops model show <name|run-id>`
+
+```bash
+loops model show structure-agent
+loops model show a1b2c3d4
+```
+
+Example output:
+
+```text
+Run a1b2c3d4 (structure-agent) — status: running
+Model: composer-2.5
+Repo: /path/to/my-app
+Provider: cursor
+```
+
+### `loops model set <name|run-id>`
+
+```bash
+loops model set structure-agent --model composer-2.5
+loops model set a1b2c3d4 --model composer-2.5-fast
+```
+
+| Flag | Description |
+| --- | --- |
+| `--model` | Agent model id (required) |
+
+Invalid models are rejected. For an active continuous run, the worker picks up the new model on the next task.
+
 ## `loops logs <name|run-id>`
 
 View logs for a loop run. Resolves the latest run when given a loop name.

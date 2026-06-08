@@ -15,10 +15,12 @@ export function findModelByIdOrAlias(
   id: string,
   models: ModelListItem[],
 ): ModelListItem | undefined {
-  return models.find(
-    (model) =>
-      model.id === id || model.aliases?.includes(id) === true,
-  );
+  const exact = models.find((model) => model.id === id);
+  if (exact) {
+    return exact;
+  }
+
+  return models.find((model) => model.aliases?.includes(id) === true);
 }
 
 export function resolveModel(id: string, models: ModelListItem[]): string {

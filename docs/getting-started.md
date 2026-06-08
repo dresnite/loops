@@ -127,6 +127,15 @@ loops prompt set structure-agent --prompt "focus on error handling"
 
 On a continuous run, prompt changes apply on the next agent task.
 
+### View or change the model
+
+```bash
+loops model show structure-agent
+loops model set structure-agent --model composer-2.5
+```
+
+On a continuous run, model changes apply on the next agent task.
+
 Stop by loop name or run id:
 
 ```bash

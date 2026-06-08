@@ -1,4 +1,5 @@
 import type { LoopRun } from "../types.js";
+import { syncRunModelFromDisk } from "./run-model.js";
 import { appendRunLog } from "./logs.js";
 import { resolvePrompt } from "./prompt.js";
 import { resolveRunTarget } from "./resolve.js";
@@ -90,5 +91,6 @@ export async function persistWorkerRun(
   paths = getStoragePaths(),
 ): Promise<void> {
   await syncRunPromptFromDisk(run, paths);
+  await syncRunModelFromDisk(run, paths);
   await saveRun(run, paths);
 }

@@ -89,6 +89,15 @@ When you run a loop, the model is resolved in this order:
 
 Invalid models are rejected before the worker starts.
 
+## Run model
+
+Each run stores the resolved model id on its run record (`model`).
+
+- View with `loops model show <name|run-id>`
+- Update with `loops model set <name|run-id> --model <id>`
+
+For active continuous runs, model edits apply on the **next** agent task. The worker reloads the model from disk before each task and before every state save, so mid-task `loops model set` is not overwritten.
+
 ## Run prompt
 
 Each run stores the resolved prompt text on its run record (`prompt`, and optionally `presetPath`).

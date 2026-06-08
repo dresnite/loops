@@ -9,6 +9,7 @@ import {
 import { appendRunLog, appendRunLogBlock } from "./logs.js";
 import { isWorkerCliInvocation } from "./paths.js";
 import { isActiveRun, isRunStopped } from "./run-state.js";
+import { syncRunModelFromDisk } from "./run-model.js";
 import { persistWorkerRun, syncRunPromptFromDisk } from "./run-prompt.js";
 import { getRun, readRunRaw, saveRun } from "./runner.js";
 import { StreamEventLogger } from "./stream-log.js";
@@ -168,6 +169,7 @@ export async function executeWorker(runId: string): Promise<number> {
       }
 
       await syncRunPromptFromDisk(run, paths);
+      await syncRunModelFromDisk(run, paths);
 
       const taskNumber = run.tasksCompleted + 1;
       const outcome = await consumeRun(run, run.prompt, taskNumber);

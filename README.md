@@ -42,6 +42,8 @@ loops logs structure-agent
 loops logs structure-agent --follow
 loops prompt show structure-agent
 loops prompt set structure-agent --prompt "focus on tests next"
+loops model show structure-agent
+loops model set structure-agent --model composer-2.5
 
 # 6. Stop a run (by name or run-id)
 loops stop structure-agent

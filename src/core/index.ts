@@ -32,6 +32,12 @@ export {
 } from "./run-prompt.js";
 export type { SetRunPromptInput } from "./run-prompt.js";
 export {
+  formatRunModelDisplay,
+  getRunForModelTarget,
+  setRunModel,
+  syncRunModelFromDisk,
+} from "./run-model.js";
+export {
   ensureStorageDirs,
   getStoragePaths,
   listJsonFiles,
