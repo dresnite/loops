@@ -37,6 +37,7 @@ export async function addLoop(
     description: input.description,
     defaultPrompt: input.defaultPrompt,
     defaultPreset: input.defaultPreset,
+    defaultModel: input.defaultModel,
     provider: input.provider ?? DEFAULT_PROVIDER,
     createdAt: timestamp,
     updatedAt: timestamp,

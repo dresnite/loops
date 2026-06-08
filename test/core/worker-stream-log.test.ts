@@ -5,7 +5,9 @@ import { ASSISTANT_LOG_LABEL, readRunLog } from "../../src/core/logs.js";
 import { addLoop } from "../../src/core/registry.js";
 import { startRun } from "../../src/core/runner.js";
 import { getStoragePaths } from "../../src/core/storage.js";
+import { setModelListForTesting } from "../../src/core/models.js";
 import { executeWorker } from "../../src/core/worker.js";
+import { DEFAULT_MODEL } from "../../src/constants.js";
 import {
   MockProvider,
   resetMockProviderIds,
@@ -20,6 +22,7 @@ beforeEach(() => {
   vi.unstubAllEnvs();
   delete process.env.LOOPS_TEST_MODE;
   setupTestRuntime();
+  setModelListForTesting([{ id: DEFAULT_MODEL, displayName: "Composer 2.5" }]);
   resetMockProviderIds();
   setProviderForTesting(
     new MockProvider({
@@ -34,6 +37,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  setModelListForTesting(null);
   setProviderForTesting(null);
   vi.unstubAllEnvs();
   await Promise.all(cleanups.map((cleanup) => cleanup()));

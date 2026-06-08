@@ -1,3 +1,4 @@
+import { DEFAULT_MODEL } from "../../src/constants.js";
 import { createEmptyUsage } from "../../src/core/limits.js";
 import type { LoopRun } from "../../src/types.js";
 
@@ -6,6 +7,7 @@ export function makeTestRun(overrides: Partial<LoopRun> = {}): LoopRun {
     id: "deadbeef",
     loopName: "loops-improvement",
     provider: "cursor",
+    model: DEFAULT_MODEL,
     repoPath: "/repo",
     prompt: "prompt",
     status: "running",

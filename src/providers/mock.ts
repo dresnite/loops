@@ -80,11 +80,13 @@ class MockAgentSession implements AgentSession {
 
   constructor(
     private readonly behaviors: MockRunBehavior[],
+    private readonly hooks?: { onSend?: (prompt: string) => void },
   ) {
     this.agentId = `mock-agent-${nextAgentId++}`;
   }
 
-  async send(_prompt: string, options?: SendHookOptions): Promise<AgentRun> {
+  async send(prompt: string, options?: SendHookOptions): Promise<AgentRun> {
+    this.hooks?.onSend?.(prompt);
     const behavior = this.behaviors[this.runIndex] ?? {};
     this.runIndex += 1;
 
@@ -112,24 +114,41 @@ class MockAgentSession implements AgentSession {
 export class MockProvider implements AgentProvider {
   readonly id: ProviderId = "cursor";
   private readonly options: MockProviderOptions;
+  lastSessionOptions: SessionOptions | undefined;
+  lastSession: MockAgentSession | undefined;
+  readonly sentPrompts: string[] = [];
 
   constructor(options: MockProviderOptions = {}) {
     this.options = options;
   }
 
-  async createSession(_options: SessionOptions): Promise<AgentSession> {
+  async createSession(options: SessionOptions): Promise<AgentSession> {
+    this.lastSessionOptions = options;
+
     if (this.options.failCreate) {
       throw new Error("startup failed: mock provider failure");
     }
 
-    return new MockAgentSession(this.options.runs ?? [{}]);
+    const provider = this;
+    const session = new MockAgentSession(this.options.runs ?? [{}], {
+      onSend(prompt: string) {
+        provider.sentPrompts.push(prompt);
+      },
+    });
+    this.lastSession = session;
+    return session;
   }
 
   async resumeSession(
     agentId: string,
     _options: SessionOptions,
   ): Promise<AgentSession> {
-    const session = new MockAgentSession(this.options.runs ?? [{}]);
+    const provider = this;
+    const session = new MockAgentSession(this.options.runs ?? [{}], {
+      onSend(prompt: string) {
+        provider.sentPrompts.push(prompt);
+      },
+    });
     Object.defineProperty(session, "agentId", { value: agentId });
     return session;
   }

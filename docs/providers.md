@@ -23,9 +23,18 @@ loops key set cursor cursor_...
 - Continuous runs reuse the same agent for conversation continuity
 - `loops stop` cancels the in-flight run and terminates the worker
 
-**Default model:** `composer-2.5`
+**Default model:** `composer-2.5` (standard tier, not `composer-2.5-fast`)
 
-**Docs:** [Cursor TypeScript SDK](https://cursor.com/docs/sdk/typescript)
+Set a default on the definition or override per run:
+
+```bash
+loops add structure-agent --model composer-2.5
+loops run structure-agent --repo ./my-app --model composer-2.5-fast
+```
+
+`loops run` validates the model against your account via the Cursor API before starting. Unknown models fail with a clear error. Discover valid ids programmatically with `Cursor.models.list()` from `@cursor/sdk`.
+
+**Docs:** [Cursor TypeScript SDK](https://cursor.com/docs/sdk/typescript) · [Composer 2.5 pricing](https://cursor.com/docs/models/cursor-composer-2-5)
 
 Select Cursor explicitly (this is the default):
 

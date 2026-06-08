@@ -8,6 +8,7 @@ import { assertSupportedProvider } from "../providers/index.js";
 import type { LoopRun, StartRunInput } from "../types.js";
 import { isErrnoCode } from "./errors.js";
 import { createEmptyUsage } from "./limits.js";
+import { assertValidModel, resolveRunModel } from "./models.js";
 import { runLogPath } from "./logs.js";
 import { getWorkerScriptPath } from "./paths.js";
 import { isWorkerExitedError, reconcileRunState } from "./process.js";
@@ -186,10 +187,17 @@ export async function startRun(
     cwd: repoPath,
   });
 
+  const requestedModel = resolveRunModel(input, definition);
+  const model =
+    provider === "cursor"
+      ? await assertValidModel(requestedModel)
+      : requestedModel;
+
   const run: LoopRun = {
     id: createRunId(),
     loopName: input.loopName,
     provider,
+    model,
     repoPath,
     prompt: resolved.text,
     presetPath: resolved.presetPath,

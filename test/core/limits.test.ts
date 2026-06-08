@@ -31,13 +31,27 @@ describe("limits", () => {
     });
   });
 
-  it("estimates cost from usage", () => {
+  it("estimates cost from usage with default model rates", () => {
     const cost = estimateCostUsd({
       inputTokens: 1_000_000,
       outputTokens: 0,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     });
+
+    expect(cost).toBe(0.5);
+  });
+
+  it("estimates cost using model-specific rates", () => {
+    const cost = estimateCostUsd(
+      {
+        inputTokens: 1_000_000,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      },
+      "composer-2.5-fast",
+    );
 
     expect(cost).toBe(3);
   });

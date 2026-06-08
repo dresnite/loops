@@ -1,7 +1,7 @@
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
 import { isCancel } from "@clack/prompts";
-import { DEFAULT_PROVIDER, PLANNED_PROVIDERS } from "../constants.js";
+import { DEFAULT_MODEL, DEFAULT_PROVIDER, PLANNED_PROVIDERS } from "../constants.js";
 import { addLoop } from "../core/registry.js";
 
 export default defineCommand({
@@ -33,11 +33,16 @@ export default defineCommand({
       description: "Prompt for optional fields",
       default: false,
     },
+    model: {
+      type: "string",
+      description: `Default agent model (default: ${DEFAULT_MODEL})`,
+    },
   },
   async run({ args }) {
     let description = args.description;
     let defaultPrompt = args.prompt;
     let defaultPreset = args.preset;
+    let defaultModel = args.model;
 
     if (args.interactive) {
       p.intro(`Create loop "${args.name}"`);
@@ -80,6 +85,18 @@ export default defineCommand({
         }
       }
 
+      const model = await p.text({
+        message: "Default model (optional)",
+        placeholder: DEFAULT_MODEL,
+      });
+      if (isCancel(model)) {
+        p.cancel("Cancelled");
+        process.exit(0);
+      }
+      if (model) {
+        defaultModel = model;
+      }
+
       p.outro(
         `Provider: ${DEFAULT_PROVIDER} (${PLANNED_PROVIDERS.join(", ")} coming soon)`,
       );
@@ -90,6 +107,7 @@ export default defineCommand({
       description,
       defaultPrompt,
       defaultPreset,
+      defaultModel,
     });
 
     console.log(`Created loop "${definition.name}"`);

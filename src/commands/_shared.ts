@@ -35,6 +35,7 @@ export function formatRunLine(run: {
   id: string;
   loopName: string;
   status: RunStatus;
+  model?: string;
   limits: { budgetUsd?: number; maxTasks?: number };
   tasksCompleted: number;
   estimatedCostUsd: number;
@@ -43,6 +44,10 @@ export function formatRunLine(run: {
   const parts = [
     `${run.loopName} → ${run.status} (run-id: ${run.id.slice(0, 4)})`,
   ];
+
+  if (run.model) {
+    parts.push(`model: ${run.model}`);
+  }
 
   if (run.limits.budgetUsd !== undefined) {
     const percent = Math.min(

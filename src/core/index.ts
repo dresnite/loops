@@ -25,6 +25,13 @@ export {
 export { executeWorker } from "./worker.js";
 export { resolvePrompt } from "./prompt.js";
 export {
+  formatRunPromptDisplay,
+  getRunForPromptTarget,
+  setRunPrompt,
+  syncRunPromptFromDisk,
+} from "./run-prompt.js";
+export type { SetRunPromptInput } from "./run-prompt.js";
+export {
   ensureStorageDirs,
   getStoragePaths,
   listJsonFiles,
@@ -39,6 +46,19 @@ export {
   mergeUsage,
   shouldStopForLimits,
 } from "./limits.js";
+export {
+  getModelTokenRates,
+  MODEL_TOKEN_RATES,
+} from "./model-pricing.js";
+export type { TokenRates } from "./model-pricing.js";
+export {
+  assertValidModel,
+  findModelByIdOrAlias,
+  listAvailableModels,
+  resolveModel,
+  resolveRunModel,
+  setModelListForTesting,
+} from "./models.js";
 export {
   cursorApiKeyMissingMessage,
   getCredentials,

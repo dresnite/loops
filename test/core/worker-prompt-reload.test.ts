@@ -1,10 +1,11 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "pathe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setModelListForTesting } from "../../src/core/models.js";
+import { setRunPrompt } from "../../src/core/run-prompt.js";
 import { addLoop } from "../../src/core/registry.js";
 import { getRun, startRun } from "../../src/core/runner.js";
 import { getStoragePaths } from "../../src/core/storage.js";
-import { setModelListForTesting } from "../../src/core/models.js";
 import { executeWorker } from "../../src/core/worker.js";
 import { DEFAULT_MODEL } from "../../src/constants.js";
 import {
@@ -16,21 +17,15 @@ import { createTempHome } from "../helpers/temp-home.js";
 import { setupTestRuntime } from "../helpers/test-runtime.js";
 
 const cleanups: Array<() => Promise<void>> = [];
-
 let mockProvider: MockProvider;
 
 beforeEach(() => {
   vi.unstubAllEnvs();
   delete process.env.LOOPS_TEST_MODE;
   setupTestRuntime();
-  setModelListForTesting([
-    { id: DEFAULT_MODEL, displayName: "Composer 2.5" },
-    { id: "composer-2.5-fast", displayName: "Composer 2.5 Fast" },
-  ]);
+  setModelListForTesting([{ id: DEFAULT_MODEL, displayName: "Composer 2.5" }]);
   resetMockProviderIds();
-  mockProvider = new MockProvider({
-    runs: [{ rapidUsageCalls: 50 }],
-  });
+  mockProvider = new MockProvider({ runs: [{}, {}] });
   setProviderForTesting(mockProvider);
 });
 
@@ -42,41 +37,58 @@ afterEach(async () => {
   cleanups.length = 0;
 });
 
-async function setupRepo(homeDir: string): Promise<string> {
-  const repoPath = join(homeDir, "repo");
-  await mkdir(repoPath, { recursive: true });
-  await writeFile(join(repoPath, "README.md"), "# demo", "utf8");
-  return repoPath;
+async function waitForSentPromptCount(count: number): Promise<void> {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    if (mockProvider.sentPrompts.length === count) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  throw new Error(
+    `Timed out waiting for ${count} sent prompts (got ${mockProvider.sentPrompts.length})`,
+  );
 }
 
-describe("worker concurrency", () => {
-  it("survives rapid usage updates without crashing", async () => {
+describe("worker prompt reload", () => {
+  it("uses an updated prompt on the next task of a continuous run", async () => {
     const { homeDir, cleanup } = await createTempHome();
     cleanups.push(cleanup);
     vi.stubEnv("HOME", homeDir);
-
     const paths = getStoragePaths(homeDir);
-    const repoPath = await setupRepo(homeDir);
+
+    const repoPath = join(homeDir, "repo");
+    await mkdir(repoPath, { recursive: true });
+    await writeFile(join(repoPath, "README.md"), "# demo", "utf8");
 
     await addLoop({ name: "refactor", defaultPrompt: "default" }, paths);
     const run = await startRun(
       {
         loopName: "refactor",
         repoPath,
-        once: true,
-        model: "composer-2.5-fast",
+        prompt: "first prompt",
+        maxTasks: 2,
       },
       paths,
     );
 
-    const exitCode = await executeWorker(run.id);
-    expect(mockProvider.lastSessionOptions?.model).toBe("composer-2.5-fast");
-    expect(mockProvider.sentPrompts).toHaveLength(1);
+    const workerPromise = executeWorker(run.id);
+
+    await waitForSentPromptCount(1);
+    expect(mockProvider.sentPrompts[0]).toBe("first prompt");
+
+    await setRunPrompt(run.id, { prompt: "second prompt" }, paths);
+
+    const exitCode = await workerPromise;
     expect(exitCode).toBe(0);
+    expect(mockProvider.sentPrompts).toEqual([
+      "first prompt",
+      "second prompt",
+    ]);
 
     const finished = await getRun(run.id, paths);
-    expect(finished?.status).toBe("finished");
-    expect(finished?.tasksCompleted).toBe(1);
-    expect(finished?.usage.outputTokens).toBe(50);
+    expect(finished?.tasksCompleted).toBe(2);
+    expect(finished?.prompt).toBe("second prompt");
   });
 });

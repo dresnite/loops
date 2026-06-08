@@ -28,8 +28,9 @@ loops key set cursor cursor_...
 loops add structure-agent --prompt "Improve project structure"
 
 # 3. Run it on a repo (continuous by default)
-#    --budget 10  → stop after ~$10 estimated model spend
-#    --tasks 25   → stop after 25 agent turns
+#    --model composer-2.5  → standard tier (default; use composer-2.5-fast for faster inference)
+#    --budget 10           → stop after ~$10 estimated model spend
+#    --tasks 25            → stop after 25 agent turns
 loops run structure-agent --repo ./my-app --budget 10 --tasks 25
 
 # 4. Check what's running (or see failed runs)
@@ -39,6 +40,8 @@ loops ls --all
 # 5. See what a loop is doing
 loops logs structure-agent
 loops logs structure-agent --follow
+loops prompt show structure-agent
+loops prompt set structure-agent --prompt "focus on tests next"
 
 # 6. Stop a run (by name or run-id)
 loops stop structure-agent
@@ -61,6 +64,8 @@ loops rm structure-agent
 | `loops ls`                   | List running loops           |
 | `loops ls --all`             | List recent runs (incl. failed) |
 | `loops logs <name>`          | View logs for a loop run     |
+| `loops prompt show <name>`   | View the prompt for a run    |
+| `loops prompt set <name>`    | Update the prompt for a run  |
 | `loops stop <name\|run-id>`  | Stop a running loop          |
 | `loops rm <name>`            | Delete a loop definition     |
 

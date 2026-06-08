@@ -1,7 +1,9 @@
 export {
+  DEFAULT_MODEL,
   DEFAULT_PROVIDER,
   PLANNED_PROVIDERS,
   SUPPORTED_PROVIDERS,
+  TOKEN_COST_PER_MILLION,
 } from "./constants.js";
 
 export {
@@ -16,6 +18,10 @@ export {
   executeWorker,
   resolvePrompt,
   resolveRunTarget,
+  formatRunPromptDisplay,
+  getRunForPromptTarget,
+  setRunPrompt,
+  syncRunPromptFromDisk,
   getStoragePaths,
   getCursorApiKey,
   listConfiguredProviders,
@@ -26,6 +32,14 @@ export {
   budgetPercentUsed,
   estimateCostUsd,
   shouldStopForLimits,
+  assertValidModel,
+  findModelByIdOrAlias,
+  getModelTokenRates,
+  listAvailableModels,
+  resolveModel,
+  resolveRunModel,
+  setModelListForTesting,
+  MODEL_TOKEN_RATES,
 } from "./core/index.js";
 
 export {

@@ -36,6 +36,7 @@ Set with `loops key set cursor <your-key>`. The file is written with mode `600`.
   "description": "Improve codebase structure",
   "defaultPrompt": "Improve project structure",
   "defaultPreset": "./prompts/structure-agent.md",
+  "defaultModel": "composer-2.5",
   "provider": "cursor",
   "createdAt": "2026-06-08T12:00:00.000Z",
   "updatedAt": "2026-06-08T12:00:00.000Z"
@@ -49,6 +50,7 @@ Set with `loops key set cursor <your-key>`. The file is written with mode `600`.
   "id": "a1b2c3d4",
   "loopName": "structure-agent",
   "provider": "cursor",
+  "model": "composer-2.5",
   "repoPath": "/Users/me/projects/my-app",
   "prompt": "Improve project structure",
   "status": "running",
@@ -62,7 +64,7 @@ Set with `loops key set cursor <your-key>`. The file is written with mode `600`.
     "cacheReadTokens": 0,
     "cacheWriteTokens": 0
   },
-  "estimatedCostUsd": 3.096,
+  "estimatedCostUsd": 0.516,
   "startedAt": "2026-06-08T12:00:00.000Z",
   "updatedAt": "2026-06-08T12:05:00.000Z"
 }
@@ -85,14 +87,16 @@ Get a key at: https://cursor.com/dashboard/integrations
 
 ## Budget estimation
 
-The Cursor SDK reports token usage per agent turn, not dollar amounts. Loops estimates cost using configurable per-million-token rates:
+The Cursor SDK reports token usage per agent turn, not dollar amounts. Loops estimates cost using per-model per-million-token rates. The default model is `composer-2.5` (standard tier):
 
-| Token type | Default rate (USD / 1M tokens) |
+| Token type | `composer-2.5` (USD / 1M tokens) |
 | --- | --- |
-| Input | $3.00 |
-| Output | $15.00 |
-| Cache read | $0.75 |
-| Cache write | $3.75 |
+| Input | $0.50 |
+| Output | $2.50 |
+| Cache read | $0.125 |
+| Cache write | $0.625 |
+
+Other models use their own rates. For example, `composer-2.5-fast` uses $3.00 / $15.00 per million input/output tokens. Unknown models fall back to `composer-2.5` rates.
 
 These rates are approximate. Actual billing follows your Cursor plan and appears in the team usage dashboard under the SDK tag.
 

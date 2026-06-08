@@ -20,7 +20,15 @@ describe("loops add", () => {
     vi.stubEnv("HOME", homeDir);
 
     await runCommand(addCommand, {
-      rawArgs: ["refactor", "--description", "Refactor code", "--prompt", "Improve structure"],
+      rawArgs: [
+        "refactor",
+        "--description",
+        "Refactor code",
+        "--prompt",
+        "Improve structure",
+        "--model",
+        "gpt-5.2",
+      ],
     });
 
     const definition = await getLoop("refactor", getStoragePaths(homeDir));
@@ -28,6 +36,7 @@ describe("loops add", () => {
       name: "refactor",
       description: "Refactor code",
       defaultPrompt: "Improve structure",
+      defaultModel: "gpt-5.2",
     });
   });
 });

@@ -9,6 +9,7 @@ import {
 import { appendRunLog, appendRunLogBlock } from "./logs.js";
 import { isWorkerCliInvocation } from "./paths.js";
 import { isActiveRun, isRunStopped } from "./run-state.js";
+import { syncRunPromptFromDisk } from "./run-prompt.js";
 import { getRun, readRunRaw, saveRun } from "./runner.js";
 import { StreamEventLogger } from "./stream-log.js";
 import { getStoragePaths } from "./storage.js";
@@ -77,7 +78,10 @@ async function consumeRun(
   taskNumber: number,
 ): Promise<{ status: "finished" | "error" | "cancelled"; usage: TokenUsage }> {
   const provider = getProvider(run.provider);
-  const session = await provider.createSession({ repoPath: run.repoPath });
+  const session = await provider.createSession({
+    repoPath: run.repoPath,
+    model: run.model,
+  });
   run.agentId = session.agentId;
   await saveRun(run);
 
@@ -89,7 +93,7 @@ async function consumeRun(
     const agentRun = await session.send(prompt, {
       onUsage: (usage) => {
         run.usage = mergeUsage(run.usage, usage);
-        run.estimatedCostUsd = estimateCostUsd(run.usage);
+        run.estimatedCostUsd = estimateCostUsd(run.usage, run.model);
         usageSaver.schedule(run);
       },
     });
@@ -163,10 +167,12 @@ export async function executeWorker(runId: string): Promise<number> {
         return 0;
       }
 
+      await syncRunPromptFromDisk(run, paths);
+
       const taskNumber = run.tasksCompleted + 1;
       const outcome = await consumeRun(run, run.prompt, taskNumber);
       run.tasksCompleted += 1;
-      run.estimatedCostUsd = estimateCostUsd(run.usage);
+      run.estimatedCostUsd = estimateCostUsd(run.usage, run.model);
       await saveRun(run, paths);
 
       if (outcome.status === "error") {

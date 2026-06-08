@@ -44,6 +44,7 @@ loops add structure-agent
 loops add structure-agent --description "Improve codebase structure"
 loops add structure-agent --prompt "Improve project structure"
 loops add structure-agent --preset ./prompts/structure-agent.md
+loops add structure-agent --model gpt-5.2
 loops add structure-agent --interactive
 ```
 
@@ -52,6 +53,7 @@ loops add structure-agent --interactive
 | `--description`, `-d` | Human-readable description |
 | `--prompt` | Default inline prompt |
 | `--preset` | Default preset file path |
+| `--model` | Default agent model (default: `composer-2.5`) |
 | `--interactive` | Prompt for optional fields |
 
 Fails if a definition with the same name already exists.
@@ -65,6 +67,7 @@ loops run structure-agent --repo ./my-app
 loops run structure-agent --repo ./my-app --prompt "fix all lint issues"
 loops run structure-agent --repo ./my-app --preset ./prompts/structure-agent.md
 loops run structure-agent --repo ./my-app --budget 10 --tasks 25
+loops run structure-agent --repo ./my-app --model composer-2.5-fast
 loops run structure-agent --repo ./my-app --once
 ```
 
@@ -73,6 +76,7 @@ loops run structure-agent --repo ./my-app --once
 | `--repo` | Repository path (default: current directory) |
 | `--preset` | Preset instruction file for this run |
 | `--prompt` | Inline instruction for this run |
+| `--model` | Agent model for this run (overrides definition default; default: `composer-2.5`) |
 | `--budget` | Maximum estimated spend in USD; stops the run when reached |
 | `--tasks` | Maximum number of agent turns; stops the run when reached |
 | `--once` | Run once and exit |
@@ -100,11 +104,52 @@ loops ls --all
 Example output:
 
 ```text
-structure-agent → running (run-id: a1b2, budget used: 30%, tasks: 7/25)
+structure-agent → running (run-id: a1b2, model: composer-2.5, budget used: 30%, tasks: 7/25)
 structure-agent → error (run-id: c3d4, tasks: 3/25, error: startup failed: ...)
 ```
 
 Shows budget percentage, task progress, and error snippets when relevant.
+
+## `loops prompt`
+
+View or update the prompt for a loop run.
+
+### `loops prompt show <name|run-id>`
+
+Show the resolved prompt and run metadata.
+
+```bash
+loops prompt show structure-agent
+loops prompt show a1b2c3d4
+```
+
+Example output:
+
+```text
+Run a1b2c3d4 (structure-agent) — status: running
+Model: composer-2.5
+Repo: /path/to/my-app
+---
+Improve project structure
+```
+
+When the run used a preset file, `Preset: <path>` appears above the separator.
+
+### `loops prompt set <name|run-id>`
+
+Update the prompt stored on the run record.
+
+```bash
+loops prompt set structure-agent --prompt "fix all lint issues"
+loops prompt set a1b2c3d4 --preset ./prompts/structure-agent.md
+```
+
+| Flag | Description |
+| --- | --- |
+| `--prompt` | Inline prompt text (clears any stored preset path) |
+| `--preset` | Preset file path, resolved relative to the run's `--repo` |
+
+Provide exactly one of `--prompt` or `--preset`. For an active continuous run, the worker picks up the new prompt on the next task.
 
 ## `loops logs <name|run-id>`
 

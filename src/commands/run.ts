@@ -1,5 +1,5 @@
 import { defineCommand } from "citty";
-import { DEFAULT_PROVIDER } from "../constants.js";
+import { DEFAULT_MODEL, DEFAULT_PROVIDER } from "../constants.js";
 import { requireCursorApiKey } from "../core/credentials.js";
 import { startRun } from "../core/runner.js";
 import {
@@ -49,6 +49,10 @@ export default defineCommand({
       description: `Agent provider (default: ${DEFAULT_PROVIDER})`,
       default: DEFAULT_PROVIDER,
     },
+    model: {
+      type: "string",
+      description: `Agent model (default: ${DEFAULT_MODEL})`,
+    },
   },
   async run({ args }) {
     if (args.provider === "cursor" || !args.provider) {
@@ -64,6 +68,7 @@ export default defineCommand({
       maxTasks: parseTasks(args.tasks),
       once: args.once,
       provider: args.provider as typeof DEFAULT_PROVIDER,
+      model: args.model,
     });
 
     console.log(`Started loop "${run.loopName}" (run-id: ${run.id})`);

@@ -6,7 +6,7 @@ const providerNote = `Providers: ${SUPPORTED_PROVIDERS.join(", ")} (planned: ${P
 const main = defineCommand({
   meta: {
     name: "loops",
-    version: "0.1.0",
+    version: "0.2.0",
     description: `Reusable AI agent workflows for your codebase. ${providerNote}`,
   },
   subCommands: {
@@ -15,6 +15,7 @@ const main = defineCommand({
     run: () => import("./commands/run.js").then((module) => module.default),
     ls: () => import("./commands/ls.js").then((module) => module.default),
     logs: () => import("./commands/logs.js").then((module) => module.default),
+    prompt: () => import("./commands/prompt.js").then((module) => module.default),
     stop: () => import("./commands/stop.js").then((module) => module.default),
     rm: () => import("./commands/rm.js").then((module) => module.default),
   },

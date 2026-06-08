@@ -12,6 +12,7 @@ export interface LoopDefinition {
   description?: string;
   defaultPrompt?: string;
   defaultPreset?: string;
+  defaultModel?: string;
   provider: ProviderId;
   createdAt: string;
   updatedAt: string;
@@ -33,6 +34,7 @@ export interface LoopRun {
   id: string;
   loopName: string;
   provider: ProviderId;
+  model: string;
   repoPath: string;
   prompt: string;
   presetPath?: string;
@@ -55,6 +57,7 @@ export interface CreateLoopInput {
   description?: string;
   defaultPrompt?: string;
   defaultPreset?: string;
+  defaultModel?: string;
   provider?: ProviderId;
 }
 
@@ -63,6 +66,7 @@ export interface StartRunInput {
   repoPath: string;
   prompt?: string;
   presetPath?: string;
+  model?: string;
   provider?: ProviderId;
   budgetUsd?: number;
   maxTasks?: number;

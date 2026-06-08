@@ -1,4 +1,4 @@
-import { TOKEN_COST_PER_MILLION } from "../constants.js";
+import { getModelTokenRates } from "./model-pricing.js";
 import type { LoopRunLimits, TokenUsage } from "../types.js";
 
 export function createEmptyUsage(): TokenUsage {
@@ -19,15 +19,14 @@ export function mergeUsage(current: TokenUsage, delta: TokenUsage): TokenUsage {
   };
 }
 
-export function estimateCostUsd(usage: TokenUsage): number {
-  const inputCost =
-    (usage.inputTokens / 1_000_000) * TOKEN_COST_PER_MILLION.input;
-  const outputCost =
-    (usage.outputTokens / 1_000_000) * TOKEN_COST_PER_MILLION.output;
+export function estimateCostUsd(usage: TokenUsage, model?: string): number {
+  const rates = getModelTokenRates(model);
+  const inputCost = (usage.inputTokens / 1_000_000) * rates.input;
+  const outputCost = (usage.outputTokens / 1_000_000) * rates.output;
   const cacheReadCost =
-    (usage.cacheReadTokens / 1_000_000) * TOKEN_COST_PER_MILLION.cacheRead;
+    (usage.cacheReadTokens / 1_000_000) * rates.cacheRead;
   const cacheWriteCost =
-    (usage.cacheWriteTokens / 1_000_000) * TOKEN_COST_PER_MILLION.cacheWrite;
+    (usage.cacheWriteTokens / 1_000_000) * rates.cacheWrite;
 
   return inputCost + outputCost + cacheReadCost + cacheWriteCost;
 }

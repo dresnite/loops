@@ -118,6 +118,15 @@ Failed runs show `status: error` with an error snippet. `loops logs` prints the 
 loops logs structure-agent --follow
 ```
 
+### View or change the prompt
+
+```bash
+loops prompt show structure-agent
+loops prompt set structure-agent --prompt "focus on error handling"
+```
+
+On a continuous run, prompt changes apply on the next agent task.
+
 Stop by loop name or run id:
 
 ```bash

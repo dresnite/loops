@@ -15,9 +15,17 @@ import {
   resetMockProviderIds,
   setProviderForTesting,
 } from "../../src/providers/index.js";
+import { setModelListForTesting } from "../../src/core/models.js";
 import { executeWorker } from "../../src/core/worker.js";
+import { DEFAULT_MODEL } from "../../src/constants.js";
 import { createTempHome } from "../helpers/temp-home.js";
 import { setupTestRuntime } from "../helpers/test-runtime.js";
+
+const TEST_MODELS = [
+  { id: "composer-2.5", displayName: "Composer 2.5" },
+  { id: "composer-2.5-fast", displayName: "Composer 2.5 Fast" },
+  { id: "gpt-5.2", displayName: "GPT-5.2" },
+];
 
 const cleanups: Array<() => Promise<void>> = [];
 
@@ -25,12 +33,14 @@ beforeEach(() => {
   vi.unstubAllEnvs();
   delete process.env.LOOPS_TEST_MODE;
   setupTestRuntime({ workerPid: 4242 });
+  setModelListForTesting(TEST_MODELS);
 
   resetMockProviderIds();
   setProviderForTesting(new MockProvider({ runs: [{}, {}] }));
 });
 
 afterEach(async () => {
+  setModelListForTesting(null);
   setProviderForTesting(null);
   vi.unstubAllEnvs();
   await Promise.all(cleanups.map((cleanup) => cleanup()));
@@ -67,6 +77,55 @@ describe("runner", () => {
     expect(run.status).toBe("running");
     expect(run.pid).toBe(4242);
     expect(run.continuous).toBe(true);
+    expect(run.model).toBe(DEFAULT_MODEL);
+  });
+
+  it("uses run model flag and definition default", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    const paths = getStoragePaths(homeDir);
+    const repoPath = await setupRepo(homeDir);
+
+    await addLoop(
+      { name: "refactor", defaultPrompt: "default", defaultModel: "gpt-5.2" },
+      paths,
+    );
+
+    const fromDefinition = await startRun(
+      { loopName: "refactor", repoPath },
+      paths,
+    );
+    expect(fromDefinition.model).toBe("gpt-5.2");
+
+    const fromFlag = await startRun(
+      {
+        loopName: "refactor",
+        repoPath,
+        model: "composer-2.5-fast",
+      },
+      paths,
+    );
+    expect(fromFlag.model).toBe("composer-2.5-fast");
+  });
+
+  it("rejects unknown models", async () => {
+    const { homeDir, cleanup } = await createTempHome();
+    cleanups.push(cleanup);
+    const paths = getStoragePaths(homeDir);
+    const repoPath = await setupRepo(homeDir);
+
+    await addLoop({ name: "refactor", defaultPrompt: "default" }, paths);
+
+    await expect(
+      startRun(
+        {
+          loopName: "refactor",
+          repoPath,
+          model: "not-a-real-model",
+        },
+        paths,
+      ),
+    ).rejects.toThrow('Unknown model "not-a-real-model"');
   });
 
   it("supports one-shot runs", async () => {

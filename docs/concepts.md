@@ -29,6 +29,7 @@ A definition can include:
 - `description` — human-readable summary
 - `defaultPrompt` — inline instruction used when no `--prompt` is passed
 - `defaultPreset` — path to a markdown instruction file
+- `defaultModel` — default agent model (default: `composer-2.5`)
 - `provider` — agent backend (`cursor` today)
 
 ## Loop run
@@ -47,6 +48,7 @@ Each run tracks:
 
 - repository path
 - resolved prompt
+- model used for the run
 - status (`starting`, `running`, `stopped`, `finished`, `error`)
 - optional budget and task limits
 - tasks completed and estimated cost
@@ -76,6 +78,25 @@ When you run a loop, the prompt is resolved in this order:
 4. Definition `defaultPrompt`
 
 If none are available, the command fails with a clear error.
+
+## Model resolution
+
+When you run a loop, the model is resolved in this order:
+
+1. `--model <id>` on `loops run`
+2. Definition `defaultModel` (from `loops add --model`)
+3. Global default (`composer-2.5`)
+
+Invalid models are rejected before the worker starts.
+
+## Run prompt
+
+Each run stores the resolved prompt text on its run record (`prompt`, and optionally `presetPath`).
+
+- View with `loops prompt show <name|run-id>`
+- Update with `loops prompt set <name|run-id> --prompt "..."` or `--preset ./file.md`
+
+For active continuous runs, prompt edits apply on the **next** agent task. The worker reloads the prompt from disk before each task.
 
 ## Limits
 
