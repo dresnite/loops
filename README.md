@@ -46,15 +46,15 @@ loops rm structure-agent
 
 ## Commands
 
-| Command | Description |
-| --- | --- |
-| `loops key set cursor <key>` | Save your Cursor API key |
-| `loops key list` | List configured keys |
-| `loops add <name>` | Create a loop definition |
-| `loops run <name>` | Start a loop on a repository |
-| `loops ls` | List running loops |
-| `loops stop <run-id>` | Stop a running loop |
-| `loops rm <name>` | Delete a loop definition |
+| Command                      | Description                  |
+| ---------------------------- | ---------------------------- |
+| `loops key set cursor <key>` | Save your Cursor API key     |
+| `loops key list`             | List configured keys         |
+| `loops add <name>`           | Create a loop definition     |
+| `loops run <name>`           | Start a loop on a repository |
+| `loops ls`                   | List running loops           |
+| `loops stop <run-id>`        | Stop a running loop          |
+| `loops rm <name>`            | Delete a loop definition     |
 
 ## Documentation
 
@@ -74,6 +74,20 @@ Instead of running the same prompt manually every time, you get a workflow that:
 - starts and stops like a process
 - respects optional budget and task limits
 
+## Projects using Loops
+
+Projects using Loops to run continuous AI workflows on their codebases:
+
+- **[Animoo](https://animoo.ai)** — AI manga creation app. Runs Loops to improve stability, harden the codebase, and keep the product reliable as it evolves.
+
+## Support
+
+If Loops is useful to you, one way to support its development is to buy a [Cursor plan through my referral link](https://cursor.com/referral?code=KRPQKTMQIZAY). That gives me extra tokens to keep burning on real Loops runs.
+
+I'm not paid or sponsored to post that link here — it's just my personal referral code, and you're supporting the tool's author, not a brand deal.
+
 ## License
 
-MIT
+Copyright (c) 2026 Andres Arias
+
+Licensed under the MIT License. See [LICENSE](LICENSE) for the full text.

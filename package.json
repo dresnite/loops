@@ -17,7 +17,8 @@
   },
   "files": [
     "dist",
-    "docs"
+    "docs",
+    "LICENSE"
   ],
   "scripts": {
     "dev": "tsx src/cli.ts",
