@@ -31,11 +31,11 @@ export const MODEL_TOKEN_RATES: Record<string, TokenRates> = {
   "claude-opus-4-8-thinking-high": rates(5, 25),
 };
 
-const DEFAULT_RATES = MODEL_TOKEN_RATES[DEFAULT_MODEL];
+const DEFAULT_RATES: TokenRates = MODEL_TOKEN_RATES[DEFAULT_MODEL]!;
 
 export function getModelTokenRates(modelId?: string): TokenRates {
-  if (modelId && modelId in MODEL_TOKEN_RATES) {
-    return MODEL_TOKEN_RATES[modelId];
+  if (modelId !== undefined && modelId in MODEL_TOKEN_RATES) {
+    return MODEL_TOKEN_RATES[modelId]!;
   }
 
   return DEFAULT_RATES;
